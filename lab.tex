@@ -1,0 +1,542 @@
+% =====================================================================
+%  LAB DECK -- companion to the theory deck for the
+%  Column Generation & Branch-and-Price workshop
+% =====================================================================
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{metropolis}
+\usecolortheme{default}
+\metroset{progressbar=frametitle, sectionpage=progressbar, subsectionpage=progressbar}
+\setbeamertemplate{frame numbering}{%
+  \insertframenumber\,/\,\inserttotalframenumber}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc,fit,backgrounds}
+\tcbuselibrary{skins,breakable}
+
+\definecolor{accent}{HTML}{C72A2A}
+\definecolor{accent2}{HTML}{1F6FB2}
+\definecolor{soft}{HTML}{F2F2F2}
+\definecolor{codebg}{HTML}{F7F7F7}
+\definecolor{codekw}{HTML}{0033B3}
+\definecolor{codestr}{HTML}{067D17}
+\definecolor{codecom}{HTML}{8C8C8C}
+
+\lstdefinestyle{py}{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  showstringspaces=false,
+  breaklines=true,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{black!20},
+  numbers=none,
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  framexleftmargin=2pt,
+  framexrightmargin=2pt,
+  aboveskip=2pt,
+  belowskip=2pt,
+}
+\lstdefinestyle{sh}{
+  basicstyle=\ttfamily\small,
+  showstringspaces=false,
+  breaklines=true,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{black!20},
+  xleftmargin=4pt,
+  xrightmargin=4pt,
+  aboveskip=2pt,
+  belowskip=2pt,
+}
+\lstset{style=py}
+
+\newtcolorbox{keybox}[1][Key idea]{
+  colback=accent!8,colframe=accent,sharp corners,
+  boxrule=0.5pt, left=4pt,right=4pt,top=3pt,bottom=3pt,
+  fonttitle=\bfseries, title={#1}}
+\newtcolorbox{warnbox}[1][Pitfall]{
+  colback=yellow!10,colframe=orange!80!black,sharp corners,
+  boxrule=0.5pt,left=4pt,right=4pt,top=3pt,bottom=3pt,
+  fonttitle=\bfseries,title={#1}}
+\newtcolorbox{exbox}[1][Exercise]{
+  colback=green!5,colframe=green!50!black,sharp corners,
+  boxrule=0.5pt,left=4pt,right=4pt,top=3pt,bottom=3pt,
+  fonttitle=\bfseries\sffamily,title={#1}}
+\newtcolorbox{tipbox}[1][Tip]{
+  colback=accent2!8,colframe=accent2!70,sharp corners,
+  boxrule=0.5pt,left=4pt,right=4pt,top=3pt,bottom=3pt,
+  fonttitle=\bfseries,title={#1}}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\rmp}{\mathsf{RMP}}
+\newcommand{\redcost}{\bar{c}}
+
+\title{Column Generation \& Branch-and-Price}
+\subtitle{Lab deck -- installation, running, exercises}
+\author{Workshop lab kit}
+\institute{Polytechnique Montr\'eal}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}\titlepage\end{frame}
+
+\begin{frame}{What this deck contains}
+  \begin{itemize}\setlength{\itemsep}{4pt}
+    \item Setup: Python virtual environment, dependencies, smoke check.
+    \item File map of the \texttt{participants/} folder.
+    \item How to run the smoke check on \texttt{toy.txt}.
+    \item Exercises A through E, in execution order, with each \texttt{EX-X.k}
+          hole listed explicitly so nothing is skipped.
+    \item Troubleshooting recipes.
+    \item Cheat sheet: HiGHS \& \texttt{rcspp} APIs.
+  \end{itemize}
+  \vfill
+  Open this deck on a second screen \emph{while you code}. The theory is in
+  \texttt{theory.pdf}.
+\end{frame}
+
+% =====================================================================
+\section{1. Installation}
+% =====================================================================
+
+\begin{frame}[fragile]{What you need on your laptop}
+  \begin{itemize}\small
+    \item Python $\ge 3.10$.
+    \item \texttt{pip} and \texttt{venv} (standard library on most systems).
+    \item Network access for the first install -- HiGHS, NumPy, NetworkX,
+          and the \texttt{rcspp} package come from PyPI / TestPyPI.
+    \item About 200~MB of disk for the venv.
+  \end{itemize}
+  \medskip
+\begin{lstlisting}[style=sh]
+$ python3 --version
+Python 3.11.6
+\end{lstlisting}
+  \begin{tipbox}[macOS / Homebrew]
+    With multiple Pythons, prefer the Homebrew one
+    (\texttt{brew install python}) over the system one shipped by Apple.
+  \end{tipbox}
+\end{frame}
+
+\begin{frame}[fragile]{Create the virtual environment}
+\begin{lstlisting}[style=sh]
+$ cd participants/
+$ python3 -m venv .venv
+$ source .venv/bin/activate         # macOS / Linux
+# .venv\Scripts\activate           # Windows PowerShell
+(.venv) $ python -m pip install --upgrade pip
+(.venv) $ pip install -r requirements.txt
+\end{lstlisting}
+  Then install the workshop pricer:
+\begin{lstlisting}[style=sh]
+(.venv) $ pip install \
+    --index-url https://test.pypi.org/simple/ \
+    --extra-index-url https://pypi.org/simple \
+    rcspp
+\end{lstlisting}
+  \begin{warnbox}[Always activate the venv]
+    Every new terminal must \texttt{source .venv/bin/activate} first,
+    otherwise \texttt{import highspy} or \texttt{import rcspp} will pick up
+    the system Python.
+  \end{warnbox}
+\end{frame}
+
+\begin{frame}[fragile]{Smoke check -- you should see this}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.smoke_test
+[smoke] highspy version: 1.10.0
+[smoke] rcspp version:   0.0.1
+[smoke] toy instance:    7 customers, capacity 50
+[smoke] rcspp solve:     1 sink label, cost = -2.00
+[smoke] OK -- environment is ready.
+\end{lstlisting}
+  If you see \emph{any} other line marked \texttt{[smoke] ERROR}, stop and
+  fix the install before going further -- the exercises will not work
+  otherwise.
+  \medskip
+  \begin{tipbox}[Reproducing the smoke check]
+    The smoke check does not touch any code you'll modify, so you can
+    re-run it at any time to confirm your environment is still healthy.
+  \end{tipbox}
+\end{frame}
+
+% =====================================================================
+\section{2. Project tour}
+% =====================================================================
+
+\begin{frame}[fragile]{The \texttt{participants/} folder}
+\begin{lstlisting}[style=sh,basicstyle=\ttfamily\tiny]
+participants/
++-- README.md, requirements.txt, theory.pdf, lab.pdf
++-- instances/                 toy.txt + Solomon files (+ duals/R101/iter_*.txt)
++-- solutions/                 reference solutions (do not peek!)
++-- vrp/
+    +-- instance.py, instance_reader.py    (read-only)
+    +-- smoke_test.py                      (no holes)
+    +-- vrp.py                             HOLES: A.3, B.3, C.2-C.4
+    +-- cg/
+    |   +-- master_problem.py              HOLES: A.1, A.2, D.1
+    |   +-- pricing.py                     HOLES: B.1, B.2, E.4
+    |   +-- bound.py                       HOLE : C.5
+    |   +-- diving.py                      HOLES: D.2, D.3
+    |   +-- bnp.py                         HOLES: E.1, E.2, E.3 (loop is provided)
+    |   +-- mp_solution.py, path.py        (read-only)
+    +-- tests/                             progressive checks (NOT pytest)
+        +-- exA_master.py, exB_pricing.py, exC_cg.py,
+        +-- exD_diving.py, exE_bnp.py
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{The TODO holes -- complete checklist}
+  \scriptsize
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Tag & File & What to fill in \\
+    \midrule
+    \textbf{EX-A.1} & \texttt{cg/master\_problem.py} & vehicle constraint $\sum_p x_p\!\le\!K$, plus one $=\!1$ row per customer \\
+    \textbf{EX-A.2} & \texttt{cg/master\_problem.py} & add one column per path (no upper bound!) \\
+    \textbf{EX-A.3} & \texttt{vrp.py} & generate one round-trip per customer \\
+    \midrule
+    \textbf{EX-B.1} & \texttt{cg/pricing.py} & build the resource graph (nodes + arcs) \\
+    \textbf{EX-B.2} & \texttt{cg/pricing.py} & per-arc cost \& resource increments \\
+    \textbf{EX-B.3} & \texttt{vrp.py} & wire \texttt{solve\_subproblem} \\
+    \midrule
+    \textbf{EX-C.2} & \texttt{vrp.py} & multi-column add to master \\
+    \textbf{EX-C.3} & \texttt{vrp.py} & Wentges dual smoothing (optional) \\
+    \textbf{EX-C.4} & \texttt{vrp.py} & per-iteration log line (LP, LB, gap) \\
+    \textbf{EX-C.5} & \texttt{cg/bound.py} & Lagrangian bound formula \\
+    \midrule
+    \textbf{EX-D.1} & \texttt{cg/master\_problem.py} & implement \texttt{\_set\_integrality} (RMH) \\
+    \textbf{EX-D.2} & \texttt{cg/diving.py} & pick the column to fix \\
+    \textbf{EX-D.3} & \texttt{cg/diving.py} & re-run CG after a fix \\
+    \midrule
+    \textbf{EX-E.1} & \texttt{cg/bnp.py} & aggregated arc flow $\bar y_{uv}$ \\
+    \textbf{EX-E.2} & \texttt{cg/bnp.py} & most-fractional arc \\
+    \textbf{EX-E.3} & \texttt{cg/bnp.py} & build the two children \\
+    \textbf{EX-E.4} & \texttt{cg/pricing.py} & skip forbidden arcs \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+  The B\&P search loop itself is \alert{already coded} in \texttt{bnp.py}.
+\end{frame}
+
+% =====================================================================
+\section{3. Exercise A -- Master in HiGHS}
+% =====================================================================
+
+\begin{frame}[fragile]{Exercise A -- goal}
+  \begin{exbox}[Exercise A -- master \& initial columns]
+    \textbf{Holes to fill: EX-A.1, EX-A.2, EX-A.3.}
+    \begin{itemize}\small
+      \item \textbf{A.1}: in \texttt{cg/master\_problem.py}, build the
+            \alert{vehicle-count constraint} $\sum_p x_p\!\le\!K$ \emph{and}
+            one $=\!1$ covering row per customer. (The vehicle row gives
+            the dual $\sigma$ that the Lagrangian bound needs.)
+      \item \textbf{A.2}: in the same file, add a column per Path.
+            Bounds: \texttt{lower=0}, \alert{no upper bound}
+            (\texttt{upper = highspy.kHighsInf}). The column has
+            coefficient~1 on the vehicle row.
+      \item \textbf{A.3}: in \texttt{vrp.py}, complete
+            \texttt{generate\_initial\_paths}: one round-trip
+            $0\!\to\!i\!\to\!0$ per customer.
+    \end{itemize}
+  \end{exbox}
+  \medskip
+  \textbf{Run the check}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.tests.exA_master
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Exercise A -- expected output}
+\begin{lstlisting}[style=sh]
+[exA_master] building master with 7 initial columns
+[exA_master] LP optimum: 414.18  (expected ~ 414.18)
+[exA_master] dual prices:
+  pi_1=29.83  pi_2=72.65  pi_3=44.71
+  pi_4=72.65  pi_5=72.65  pi_6=58.31  pi_7=63.74
+[exA_master] OK
+\end{lstlisting}
+  \begin{tipbox}[Why no upper bound on $x_p$?]
+    The covering constraint $\sum_p a_{ip}\,x_p=1$ already bounds $x_p$
+    from above whenever $a_{ip}\ge 1$. Adding $x_p\!\le\!1$ would create an
+    extra dual $\mu_p$ that the pricer would have to subtract from
+    $\redcost_p$. We never do that.
+  \end{tipbox}
+\end{frame}
+
+% =====================================================================
+\section{4. Exercise B -- Pricing wiring}
+% =====================================================================
+
+\begin{frame}[fragile]{Exercise B -- goal}
+  \begin{exbox}[Exercise B -- arc costs \& RCSPP solve]
+    \textbf{Holes to fill: EX-B.1, EX-B.2, EX-B.3.}
+    \begin{itemize}\small
+      \item \textbf{B.1}: in \texttt{cg/pricing.py}, build the resource
+            graph (3 resources, all customer nodes + a sink).
+      \item \textbf{B.2}: per-arc cost $\bar d_{uv}=d_{uv}-\pi_v$
+            (with $\pi_0:=0$), and three increments
+            (cost, time, demand) in the order resources were registered.
+      \item \textbf{B.3}: in \texttt{vrp.py}, wire
+            \texttt{solve\_subproblem(duals)} to call \texttt{PricingGraph}.
+    \end{itemize}
+  \end{exbox}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.tests.exB_pricing
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Exercise B -- expected output}
+\begin{lstlisting}[style=sh]
+[exB_pricing] loading saved duals from instances/duals/R101/iter_0.txt
+[exB_pricing] solving RCSPP ... 14 ms
+[exB_pricing] best route        : [0, 6, 4, 2, 0]
+[exB_pricing] reduced cost      : -52.3   (expected ~ -52.3)
+[exB_pricing] # neg-cost routes : 12      (expected 12)
+[exB_pricing] OK
+\end{lstlisting}
+  \begin{warnbox}[Common bug]
+    Forgetting that the depot's dual is $0$ leaves a phantom $-\infty$ on
+    every depot-to-depot arc. Initialise \texttt{pi[0] = 0.0} explicitly.
+  \end{warnbox}
+\end{frame}
+
+% =====================================================================
+\section{5. Exercise C -- Efficient CG}
+% =====================================================================
+
+\begin{frame}{Exercise C -- goal}
+  \begin{exbox}[Exercise C -- multi-column, smoothing, LB]
+    \textbf{Holes to fill: EX-C.2, EX-C.3, EX-C.4, EX-C.5.}
+    \begin{itemize}\small
+      \item \textbf{C.2}: cap pricer output at \texttt{K\_MAX} columns; only
+            those with $\redcost<-\varepsilon$ are added to the master.
+      \item \textbf{C.3}: Wentges smoothing
+            $\boldsymbol\pi\!\leftarrow\!\alpha\boldsymbol\pi^{prev}
+                                     +(1-\alpha)\boldsymbol\pi$.
+      \item \textbf{C.4}: per-iteration log line
+            \texttt{iter, n\_cols, LP, LB, gap}.
+      \item \textbf{C.5}: in \texttt{cg/bound.py}, implement
+            $\text{LB}\!=\!\sum_i\pi_i + K\sigma + K\!\cdot\!\min(0,\redcost^*)$
+            (Trick~7 in the theory deck).
+    \end{itemize}
+  \end{exbox}
+  \begin{tipbox}[Don't rebuild the master]
+    Once it is constructed (Exercise A) you should never rebuild it. Each
+    iteration just calls \texttt{master.add\_column(\dots)} on the few new
+    columns and re-solves. HiGHS warm-starts the simplex.
+  \end{tipbox}
+\end{frame}
+
+\begin{frame}[fragile]{Exercise C -- expected output (R101\_25)}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.tests.exC_cg --instance R101_25.txt --K 50
+iter   ncols   LP        gap-vs-LB
+   0      25   1230.4    --
+   1      75   948.1     --
+   2     125   851.3     --
+   3     175   823.7     --
+   4     208   617.1     <-- converged
+\end{lstlisting}
+  Try $K\!\in\!\{1,5,20,100\}$ and observe the iteration count drop.
+  Wentges $\alpha\!=\!0.5$ usually halves it again.
+  The Lagrangian bound is computed in Exercise E.
+\end{frame}
+
+% =====================================================================
+\section{6. Exercise D -- Heuristic IP}
+% =====================================================================
+
+\begin{frame}[fragile]{Exercise D -- goal}
+  \begin{exbox}[Exercise D -- RMH and plain diving]
+    \textbf{Holes to fill: EX-D.1, EX-D.2, EX-D.3.}
+    \begin{itemize}\small
+      \item \textbf{D.1}: in \texttt{cg/master\_problem.py}, complete
+            \texttt{\_set\_integrality(integer)}; \alert{this is required}
+            for the RMH to actually solve a binary MIP. Without it,
+            \texttt{master.solve(relax=False)} silently returns the LP
+            solution.
+      \item \textbf{D.2, D.3}: in \texttt{cg/diving.py}, pick the column
+            with the largest fractional value, fix it to~1, then re-run CG.
+    \end{itemize}
+  \end{exbox}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.tests.exD_diving --instance R101_25.txt
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Exercise D -- expected output}
+\begin{lstlisting}[style=sh]
+[root]     LP=617.1
+[RMH]      incumbent=632.4   time=0.6s
+[dive 1]   fix p_42 (x=1.0)  CG -> LP=620.8
+[dive 2]   fix p_55 (x=0.92) CG -> LP=623.1
+...
+[dive end] incumbent=622.1   time=12.4s
+[summary]  RMH=632.4   dive=622.1   LP=617.1
+\end{lstlisting}
+  \begin{tipbox}[Why diving sometimes loses]
+    On easy instances the root pool is already very rich and RMH wins.
+    Diving wins when fixing forces the pricer to discover \emph{new}
+    compatible columns the root never saw.
+  \end{tipbox}
+\end{frame}
+
+% =====================================================================
+\section{7. Exercise E -- Branch-and-Price}
+% =====================================================================
+
+\begin{frame}{Exercise E -- goal}
+  \begin{exbox}[Exercise E -- arc-branching B\&P]
+    \textbf{Holes to fill: EX-E.1, E.2, E.3, E.4.}
+    \begin{itemize}\small
+      \item \textbf{E.1}: aggregated arc flow $\bar y_{uv}$.
+      \item \textbf{E.2}: most-fractional arc.
+      \item \textbf{E.3}: two children -- forbid / force.
+      \item \textbf{E.4}: in \texttt{pricing.py}, skip forbidden arcs at
+            graph-build time.
+    \end{itemize}
+    The B\&P search loop is \alert{already coded}. The Lagrangian bound
+    used for pruning was implemented in Exercise C (Trick~7).
+  \end{exbox}
+  \begin{tipbox}[Heuristic schedule]
+    The provided loop runs \alert{a dive at the root}, then RMH every $X$
+    nodes thereafter (default $X\!=\!10$). Cheap incumbents tighten the
+    Lagrangian pruning.
+  \end{tipbox}
+\end{frame}
+
+\begin{frame}[fragile]{Exercise E -- expected output}
+\begin{lstlisting}[style=sh]
+(.venv) $ python -m vrp.tests.exE_bnp --instance R101_25.txt
+[bnp]   open=1  inc=622.1  best_lb=617.1  gap=0.8%
+[node 1]  branch on (4,12)  bar_y=0.61
+[node 2]  forbid (4,12)  LP=621.2 LB=618.3 depth=1
+[node 3]  force  (4,12)  LP=620.4 LB=620.4 (integer)  inc=620.4
+[bnp]   open=1  inc=620.4  best_lb=618.3
+[node 4]  forbid further; LB=620.4  prune
+[bnp]   DONE in 5 nodes,  optimum=620.4
+\end{lstlisting}
+\end{frame}
+
+% =====================================================================
+\section{8. Troubleshooting}
+% =====================================================================
+
+\begin{frame}[fragile]{Five errors that always show up}
+  \scriptsize
+  \begin{tabular}{@{}p{0.30\textwidth}p{0.30\textwidth}p{0.36\textwidth}@{}}
+    \toprule
+    Symptom & Cause & Fix \\
+    \midrule
+    \texttt{ImportError: highspy} & venv not active &
+       \texttt{source .venv/bin/activate} \\
+    LP value $=0$ at iter 0 & forgot $b_i=1$ on covering rows &
+       set RHS=1 in EX-A.1 \\
+    pricer returns empty & $\pi_0$ not zeroed &
+       force \texttt{pi[0]=0} before pricing \\
+    LB $>$ LP early on & $\redcost^*$ from heuristic pricer &
+       LB only valid with exact pricer \\
+    B\&P loops forever & forgetting to filter parent pool &
+       drop incompatible columns at child node \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+  \begin{tipbox}[Get unstuck fast]
+    Each saved \texttt{iter\_*.txt} in \texttt{instances/duals/R101/} is a
+    one-iteration regression check. Diff your duals against them.
+  \end{tipbox}
+\end{frame}
+
+% =====================================================================
+\section{9. Cheat sheet}
+% =====================================================================
+
+\begin{frame}[fragile]{HiGHS in Python -- the calls you need}
+\begin{lstlisting}
+import highspy as hp
+m = hp.Highs()
+m.silent()                                    # no chatter
+
+# row: equality constraint sum a_ip * x_p == 1
+m.addRow(1.0, 1.0, 0, [], [])                 # empty row, fill later
+# column: cost = c_p, lb=0, ub=+inf  (no upper bound!)
+m.addCol(c_p, 0.0, hp.kHighsInf,
+         len(idx), idx, val)                  # idx = row indices
+
+m.run()                                       # solve LP
+duals = list(m.getSolution().row_dual)        # row duals = pi
+sol   = list(m.getSolution().col_value)       # primal x_p
+m.changeColIntegrality(j, hp.HighsVarType.kInteger)  # for MIP / RMH
+m.changeColBounds(j, 1.0, 1.0)                # fix column to 1 (B&P / dive)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{rcspp} cheat sheet}
+\begin{lstlisting}
+from rcspp.graph import ResourceGraph
+from rcspp.resource import (
+    RealAdditionExtensionFunction, RealValueDominanceFunction,
+    RealValueCostFunction, RealTrivialFeasibilityFunction,
+    MinMaxFeasibilityFunction,
+    TimeWindowExtensionFunction, TimeWindowFeasibilityFunction,
+)
+
+g = ResourceGraph()
+g.add_real_resource(ext, feas, cost, dom)        # cost
+g.add_real_resource(ext_t, feas_t, cost_t, dom_t)# time
+g.add_real_resource(ext_q, feas_q, cost_q, dom_q)# load
+g.add_node(node_id, is_source, is_sink)
+g.add_arc(([(redcost,), (time,), (load,)],),
+          o, d, arc_id, redcost)
+sols = g.solve()                                  # list[Solution]
+# .cost, .path_node_ids, .path_arc_ids
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Time budget reminder}
+  \begin{tabular}{@{}llr@{}}
+    \toprule
+    Exercise & Topic & Budget \\
+    \midrule
+    A & Master in HiGHS                & 15 min \\
+    B & Pricing wiring (RCSPP)         & 25 min \\
+    -- & \emph{break (15 min)}         &        \\
+    C & Multi-col + smoothing          & 20 min \\
+    D & RMH + plain diving             & 25 min \\
+    E & Arc-branching B\&P + LB        & 35 min \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+  Total $\approx$ 2~h hands-on, leaving 2~h for theory and questions.
+\end{frame}
+
+\begin{frame}{Done?}
+  \begin{itemize}\small
+    \item Bonus exercise \alert{F}: replace plain dominance by
+          \alert{ng-routes} in \texttt{pricing.py} and measure the
+          speed-up on \texttt{R101\_50.txt}.
+    \item Submit your solutions branch -- a reference solution will be
+          published at the end of the workshop.
+  \end{itemize}
+  \vfill
+  \centering Have fun, and break the LP, not the dominance!
+\end{frame}
+
+\end{document}
