@@ -74,6 +74,17 @@ class BnPNode:
 class BnPIncumbent:
     node: Optional[BnPNode] = None
     cost: float = math.inf
+    sol:  Optional[list[Path]] = None
+
+    def update_sol(self, mp_sol: MPSolution, pool: list[Path]) -> None:
+        """Extract integer routes from *mp_sol*, store them, and log them."""
+        path_by_id = {p.id: p for p in pool}
+        routes = [path_by_id[pid]
+                  for pid, v in mp_sol.value_by_var_id.items()
+                  if v > 0.5 and pid in path_by_id]
+        self.sol = routes
+        _log.info("incumbent solution (%d routes, cost=%.2f):",
+                  len(routes), self.cost)
 
 
 # --------------------------------------------------------------------
@@ -214,6 +225,8 @@ def branch_and_price(
         if ub < incumbent.cost:
             incumbent.cost = ub
             incumbent.node = node
+            if arc is None and node.sol is not None:
+                incumbent.update_sol(node.sol, node.pool)
             _log.info("new incumbent %.2f at node %d", ub, node.id)
         if arc is None:
             continue
@@ -226,6 +239,13 @@ def branch_and_price(
         open_nodes.append(down)
         child = up  # keep up to branch immediately on it (depth-first)
 
-    _log.info("B&P done in %d nodes, optimum=%.2f, global LB=%.2f",
-              nodes_processed, incumbent.cost, global_lb)
+    n_routes = len(incumbent.sol) if incumbent.sol is not None else "?"
+    _log.info("B&P done in %d nodes, optimum=%.2f (%s routes), global LB=%.2f",
+              nodes_processed, incumbent.cost, n_routes, global_lb)
+    _log.info("best solution:")
+    if incumbent.sol:
+        for route in incumbent.sol:
+            _log.info("  cost=%.2f  %s", route.cost, route.visited_nodes)
+    else:
+        _log.info("  (none found)")
     return incumbent

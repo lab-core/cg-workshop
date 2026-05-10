@@ -31,11 +31,17 @@ def main() -> int:
     t0 = time.time()
     master, lp_sol = vrp.solve_cg()
     _log.info("root LP=%.1f", lp_sol.cost)
+    path_by_id = {p.id: p for p in vrp.paths}
 
     rmh_sol = restricted_master_heuristic(master)
     rmh_obj = rmh_sol.cost
     _log.info("RMH incumbent (UB)=%.1f, time=%.1fs",
               rmh_obj, time.time() - t0)
+    _log.info("RMH solution:")
+    for pid, v in rmh_sol.value_by_var_id.items():
+        if v > 0.5:
+            p = path_by_id[pid]
+            _log.info("  cost=%.2f  %s", p.cost, p.visited_nodes)
 
     # For diving, refresh the LP after each fix.
     def run_cg() -> object:
@@ -46,6 +52,12 @@ def main() -> int:
     dive_obj = dive_sol.cost if dive_sol is not None else math.inf
     _log.info("dive incumbent (UB)=%.1f, time=%.1fs",
               dive_obj, time.time() - t0)
+    if dive_sol is not None:
+        _log.info("dive solution:")
+        for pid, v in dive_sol.value_by_var_id.items():
+            if v > 0.5:
+                p = path_by_id[pid]
+                _log.info("  cost=%.2f  %s", p.cost, p.visited_nodes)
     _log.info("summary: RMH UB=%.1f   dive UB=%.1f   LP=%.1f",
               rmh_obj, dive_obj, lp_sol.cost)
     return 0

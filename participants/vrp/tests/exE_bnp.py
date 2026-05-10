@@ -63,11 +63,18 @@ def main() -> int:
         def run_cg() -> object:
             return node.master.solve(relax=True)
         sol = plain_dive(node.master, run_cg, ub=incumbent.cost)
-        ub = sol.cost if sol is not None else math.inf
+        if sol is None:
+            return math.inf
+        ub = sol.cost
+        if ub < incumbent.cost:
+            incumbent.update_sol(sol, node.pool)
         return ub
 
     def run_rmh(node: BnPNode, incumbent: BnPIncumbent) -> float:
-        ub = restricted_master_heuristic(node.master).cost
+        sol = restricted_master_heuristic(node.master)
+        ub = sol.cost
+        if ub < incumbent.cost:
+            incumbent.update_sol(sol, node.pool)
         return ub
 
     t0 = time.time()
@@ -75,6 +82,10 @@ def main() -> int:
         root, run_cg_at_node, run_dive, run_rmh, rmh_every=args.rmh_every
     )
     _log.info("done in %.1fs, optimum=%.2f", time.time() - t0, incumbent.cost)
+    if incumbent.sol:
+        _log.info("solution (%d routes):", len(incumbent.sol))
+        for route in incumbent.sol:
+            _log.info("  cost=%.2f  %s", route.cost, route.visited_nodes)
     return 0
 
 

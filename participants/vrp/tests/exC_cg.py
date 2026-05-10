@@ -41,6 +41,12 @@ def main() -> int:
     _log.info("pricing time  : %.2f s", vrp.stats.pricing_time_s)
     _log.info("master  time  : %.2f s", vrp.stats.master_time_s)
     _log.info("total   time  : %.2f s", dt)
+    path_by_id = {p.id: p for p in vrp.paths}
+    _log.info("LP solution:")
+    for pid, v in sorted(sol.value_by_var_id.items()):
+        if v > 1e-6:
+            p = path_by_id[pid]
+            _log.info("  x=%.3f  cost=%.2f  %s", v, p.cost, p.visited_nodes)
     _log.info("OK")
     return 0
 
