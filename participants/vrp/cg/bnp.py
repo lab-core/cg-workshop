@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -75,6 +76,9 @@ class BnPIncumbent:
     node: Optional[BnPNode] = None
     cost: float = math.inf
     sol:  Optional[list[Path]] = None
+    ub_history:   list[float] = field(default_factory=list)
+    lb_history:   list[float] = field(default_factory=list)
+    time_history: list[float] = field(default_factory=list)
 
     def update_sol(self, mp_sol: MPSolution, pool: list[Path]) -> None:
         """Extract integer routes from *mp_sol*, store them, and log them."""
@@ -121,6 +125,23 @@ def most_fractional_arc(ybar: dict[tuple[int, int], float],
 # --------------------------------------------------------------------
 #  EX-E.3 -- build the two children
 # --------------------------------------------------------------------
+def _up_compatible(p: Path, u: int, v: int) -> bool:
+    """True iff path p is fully compatible with forcing arc (u → v).
+
+    Every departure from u must go to v, and every arrival at v must
+    come from u.  Paths that skip both u and v entirely are also
+    compatible.  This is stricter than uses_arc(u, v) and correctly
+    handles non-elementary paths that visit u more than once.
+    """
+    n = p.visited_nodes
+    for i in range(len(n) - 1):
+        if n[i] == u and n[i + 1] != v:
+            return False
+        if n[i + 1] == v and n[i] != u:
+            return False
+    return True
+
+
 def make_children(parent: BnPNode, arc: tuple[int, int]) -> tuple[BnPNode, BnPNode]:
     """Return (down_child, up_child) for branching on the given arc.
 
@@ -130,12 +151,12 @@ def make_children(parent: BnPNode, arc: tuple[int, int]) -> tuple[BnPNode, BnPNo
 
     Up (force (u,v)):
         - inherit parent.forced | {(u,v)}
-        - drop columns that visit u or v but do not contain the arc
-          (those routes will never be compatible with the contraction).
+        - drop columns incompatible with the forced arc: any path that
+          departs u to a node ≠ v, or arrives at v from a node ≠ u.
     """
     # === EX-E.3 ===========================================
     # TODO: build two BnPNode instances:
-    #   - shared pool filter using path.uses_arc(u, v) and path.visits(.).
+    #   - shared pool filter using path.uses_arc(u, v) and _up_compatible.
     #   - depth = parent.depth + 1.
     #   - id auto via _next_node_id() (handled by the dataclass default).
     # Return (down, up) in that order.
@@ -154,6 +175,8 @@ def branch_and_price(
     rmh_every: int = 10,
     eps: float = 1e-6,
     gap_pct: float = 0.0,
+    depth_first: bool = True,
+    demand_node_ids: Optional[set[int]] = None,
 ) -> BnPIncumbent:
     """Best-first arc-branching B&P with Lagrangian pruning.
 
@@ -166,6 +189,9 @@ def branch_and_price(
     run_dive     incumbent heuristic used at the root only.
     run_rmh      cheap incumbent heuristic (binary MIP on node pool).
     rmh_every    run RMH at every node whose id is a multiple of this.
+    depth_first  if True (default), immediately dive into the up-child
+                 after each branch (depth-first within the best-first
+                 framework).  Set to False for pure best-first search.
 
     Returns
     -------
@@ -175,14 +201,15 @@ def branch_and_price(
     incumbent = BnPIncumbent()
     nodes_processed = 0
     global_lb: float = -math.inf
+    t_start = time.perf_counter()
 
-    _log.info("B&P start: root LB=%.2f, %d columns in pool",
-              root.lb, len(root.pool))
+    _log.info("B&P start: root LB=%.2f, %d columns in pool, depth_first=%s",
+              root.lb, len(root.pool), depth_first)
 
     child = None  # for depth-first: the child we just created and want to dive into
     while open_nodes:
-        # ---- depth-first: always dive into just the created child (child is not None) ----
-        if child is not None:
+        # depth-first: always process the just-created child next (if depth_first).
+        if depth_first and child is not None:
             node = child
         else:
             open_nodes.sort(key=lambda n: n.lb)
@@ -209,6 +236,8 @@ def branch_and_price(
             _log.info("node %d: node LB=%.2f  global LB=%.2f  UB=%.2f  gap=%.2f%%",
                       node.id, node.lb, global_lb, incumbent.cost, gap)
             if gap_pct > 0.0 and gap <= gap_pct:
+                incumbent.ub_history.append(incumbent.cost)
+                incumbent.lb_history.append(global_lb)
                 _log.info("B&P stopped: gap=%.3f%% <= %.2f%%", gap, gap_pct)
                 break
         else:
@@ -222,6 +251,9 @@ def branch_and_price(
 
         # ---- incumbent: LP integer takes priority, else heuristic ----
         ybar = aggregated_arc_flow(node.sol, {p.id: p for p in node.pool})
+        if demand_node_ids is not None:
+            ybar = {a: v for a, v in ybar.items()
+                    if a[0] in demand_node_ids and a[1] in demand_node_ids}
         arc = most_fractional_arc(ybar, eps=eps)
         if arc is None:  # integer LP solution
             ub = node.lp_value
@@ -237,6 +269,12 @@ def branch_and_price(
             if arc is None and node.sol is not None:
                 incumbent.update_sol(node.sol, node.pool)
             _log.info("new incumbent %.2f at node %d", ub, node.id)
+
+        # Record per-node history after potential incumbent update.
+        incumbent.ub_history.append(incumbent.cost)
+        incumbent.lb_history.append(global_lb)
+        incumbent.time_history.append(time.perf_counter() - t_start)
+
         if arc is None:
             continue
 
@@ -246,7 +284,10 @@ def branch_and_price(
                   "-> children %d, %d",
                   node.id, node.depth, arc, ybar[arc], down.id, up.id)
         open_nodes.append(down)
-        child = up  # keep up to branch immediately on it (depth-first)
+        if depth_first:
+            child = up  # dive into up-child immediately
+        else:
+            open_nodes.append(up)
 
     n_routes = len(incumbent.sol) if incumbent.sol is not None else "?"
     _log.info("B&P done in %d nodes, optimum=%.2f (%s routes), global LB=%.2f",

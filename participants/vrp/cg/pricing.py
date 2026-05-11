@@ -98,7 +98,7 @@ class PricingGraph:
         """Add nodes + arcs to the graph using the given dual prices.
 
         Conventions:
-        * pi_0 = 0 always (depot).
+        * pi_0 = sigma (vehicle-count dual) for the depot.
         * sink_id = len(customers); same physical depot but a separate
           node so that empty paths are filtered out by the labelling.
         """
@@ -143,7 +143,8 @@ class PricingGraph:
         # Convention used in this workshop:
         #   reduced_cost = distance - pi_origin
         # i.e. the dual is paid when *leaving* a customer.
-        # Special-case the depot: pi_0 = 0.
+        # For the depot: pi_0 = sigma (vehicle-count dual), set by the
+        # CG loop via dual_by_id[depot_id] = sol.sigma before pricing.
         #
         # Resource increments (in the order registered above):
         #   resource 0 (cost)   = reduced_cost

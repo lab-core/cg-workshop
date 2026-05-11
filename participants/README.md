@@ -112,7 +112,15 @@ bound on `x_p`, coefficient 1 on the vehicle row).
 
 **B.1, B.2** — `vrp/cg/pricing.py` — build the resource graph and per-arc
 cost / increments.
+Arc reduced cost: `distance(u,v) − π_u`, where `π_u` is the dual of the
+node we *leave*.  For the depot, `π_0 = σ` (the vehicle-count dual) — **not
+0** — so that every path's reduced cost includes the `−σ` vehicle term.
+The CG loop sets `dual_by_id[depot_id] = sol.sigma` before calling the
+pricer; use `dual_by_id.get(origin_id, 0.0)` uniformly (no depot
+special-case).
 **B.3** — `vrp/vrp.py:solve_subproblem` — wire the pricer.
+Use `dual_by_id.setdefault(depot_id, 0.0)` as a safety net (the CG loop
+already sets the depot entry to `sol.sigma`).
 
 **C.2, C.3, C.4** — `vrp/vrp.py` CG loop: multi-column add, Wentges
 smoothing (optional), per-iteration log line.
@@ -150,7 +158,70 @@ python -m vrp.tests.exE_bnp --instance R101_25.txt
 
 ---
 
-## 5. Troubleshooting (the five errors that always show up)
+## 5. Comparison and visualisation tools
+
+Two scripts let you run the same instance under different configurations
+and plot convergence side-by-side. Each produces a figure with:
+
+- **Top row** — upper bound / lower bound and optimality gap vs. nodes
+  processed.
+- **Bottom row** — the same metrics vs. wall-clock time.
+
+### `compare_cg` — column generation
+
+```bash
+# compare Wentges smoothing values (fixed K=50)
+python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
+
+# compare pricing batch sizes (fixed alpha=0)
+python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+
+# compare K values with smoothing, save figure
+python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50 --alpha 0.3 --save cg.png
+```
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--alphas A …` | `0 0.1 0.3 0.5` | compare Wentges α values; K fixed at `--K` |
+| `--Ks K …` | — | compare pricing batch sizes; α fixed at `--alpha` |
+| `--K` | `50` | K used when `--alphas` is active |
+| `--alpha` | `0.0` | α used when `--Ks` is active |
+
+`--alphas` and `--Ks` are mutually exclusive.
+
+### `compare_bnp` — branch-and-price
+
+```bash
+# compare gap thresholds (default: exact only)
+python -m vrp.tests.compare_bnp --instance RC101.txt --gaps 0 2 5
+
+# compare pricing batch sizes
+python -m vrp.tests.compare_bnp --instance RC101.txt --Ks 5 20 50
+
+# compare Wentges smoothing values
+python -m vrp.tests.compare_bnp --instance RC101.txt --alphas 0 0.3 0.5
+
+# compare node-selection strategies
+python -m vrp.tests.compare_bnp --instance RC101.txt --search both
+
+# save figure
+python -m vrp.tests.compare_bnp --instance RC101.txt --Ks 5 50 --save bnp.png
+```
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--gaps G …` | — | compare optimality-gap stop thresholds; K from `--K` |
+| `--alphas A …` | — | compare Wentges α values; K from `--K` |
+| `--Ks K …` | — | compare pricing batch sizes; gap=0, α=0 |
+| `--search` | — | `depth-first`, `best-first`, or `both` |
+| `--K` | `50` | K used for all modes except `--Ks` |
+
+If none of `--gaps`, `--alphas`, `--Ks`, `--search` is given, a single
+exact run is plotted.
+
+---
+
+## 6. Troubleshooting (the five errors that always show up)
 
 | Symptom                                   | Cause                                | Fix                                              |
 |-------------------------------------------|--------------------------------------|--------------------------------------------------|
@@ -158,11 +229,12 @@ python -m vrp.tests.exE_bnp --instance R101_25.txt
 | LP value `0` at iter 0                    | forgot RHS=1 on covering rows        | check EX-A.1                                     |
 | Pricer returns empty                      | `pi[0]` left unset                   | force `pi[0] = 0.0` before pricing               |
 | LB > LP                                   | heuristic pricer used for bound      | LB only valid with **exact** pricer              |
+| LB lower than expected / slow convergence | σ not passed to pricer               | set `dual_by_id[depot_id] = sol.sigma` before pricing |
 | RMH returns the LP value                  | `_set_integrality` not implemented   | finish EX-D.1                                    |
 
 ---
 
-## 6. Going further
+## 7. Going further
 
 Bonus exercise **F** if you finish early: replace plain dominance by
 **ng-routes** (Baldacci, Mingozzi, Roberti — 2011) inside `pricing.py`,
@@ -172,7 +244,7 @@ The reference solution will be published at the end of the workshop.
 
 ---
 
-## 7. References
+## 8. References
 
 - J. Desrosiers, M. Lübbecke, G. Desaulniers, J.B. Gauthier,
   *Branch-and-Price*, Springer, 2026 (open access — DOI

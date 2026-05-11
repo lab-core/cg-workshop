@@ -50,7 +50,7 @@ def main() -> int:
         return master.solve(relax=True)
 
     t0 = time.time()
-    dive_sol = plain_dive(master, run_cg)
+    dive_sol = plain_dive(master, run_cg, ub=rmh_obj)
     dive_obj = dive_sol.cost if dive_sol is not None else math.inf
     _log.info("dive incumbent (UB)=%.1f, time=%.1fs",
               dive_obj, time.time() - t0)

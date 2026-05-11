@@ -38,6 +38,8 @@ class CGStats:
     final_lb: float = -math.inf
     pricing_time_s: float = 0.0
     master_time_s: float = 0.0
+    lp_history: list[float] = field(default_factory=list)
+    lb_history: list[float] = field(default_factory=list)
 
 
 class VRP:
@@ -94,8 +96,10 @@ class VRP:
         """Build a PricingGraph for the current duals and solve it."""
         # === EX-B.3 ===========================================
         # TODO:
-        #   1. Make sure dual_by_id contains an entry for the depot:
-        #      dual_by_id[self.instance.get_depot_customer().id] = 0.0
+        #   1. Make sure dual_by_id contains an entry for the depot.
+        #      The CG loop already sets it to sol.sigma before calling
+        #      here; use setdefault as a fallback for standalone calls:
+        #      dual_by_id.setdefault(self.instance.get_depot_customer().id, 0.0)
         #   2. Build a PricingGraph(...).build(dual_by_id).
         #   3. Return the result of graph.solve()  (sorted ascending
         #      by reduced cost; we will filter < -EPSILON in the loop).
@@ -154,6 +158,7 @@ class VRP:
             # Save the (smoothed) duals into self._prev_dual_by_id.
             # ====================================================
 
+            duals[self.instance.get_depot_customer().id] = sol.sigma
             t0 = time.time()
             sols = self.solve_subproblem(duals)
             self.stats.pricing_time_s += time.time() - t0
@@ -178,6 +183,8 @@ class VRP:
             #   nb_iter   #cols   sol.cost   LB   gap%.
             # ====================================================
             LB = math.inf  # placeholder
+            self.stats.lp_history.append(sol.cost)
+            self.stats.lb_history.append(LB)
 
             n_cols = len(master.col_by_path_id)
             ub_str = (f"{incumbent_ub:.2f}"
