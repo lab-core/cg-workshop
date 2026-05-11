@@ -47,6 +47,8 @@ class PricingGraph:
         self.instance = instance
         self.forbidden_arcs = forbidden_arcs or set()
         self.forced_arcs = forced_arcs or set()
+        self._depot_id = instance.get_depot_customer().id
+        self._sink_id = len(instance.get_customers_by_id())
 
         self._min_tw: dict[int, float] = {}
         self._max_tw: dict[int, float] = {}
@@ -123,6 +125,16 @@ class PricingGraph:
         # Skip arcs that B&P has forbidden (Exercise E).
         if (origin_id, dest_id) in self.forbidden_arcs:        # EX-E.4
             return                                              # EX-E.4
+
+        # Skip arcs that violate forced arc constraints (B&P up branch).
+        # For forced arc (u, v): from u only v is reachable; into v only u may arrive.
+        # The depot appears as sink_id for incoming arcs in the pricing graph.
+        for (fu, fv) in self.forced_arcs:
+            fv_g = self._sink_id if fv == self._depot_id else fv
+            if origin_id == fu and dest_id != fv_g:
+                return
+            if dest_id == fv_g and origin_id != fu:
+                return
 
         # === EX-B.2 ===========================================
         # TODO: compute the arc cost and three resource increments,

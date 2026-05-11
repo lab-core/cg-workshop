@@ -2,6 +2,8 @@
 
 import argparse
 import math
+import os
+import signal
 import sys
 import time
 
@@ -29,6 +31,8 @@ def main() -> int:
     ap.add_argument("--rmh-every", type=int, default=10,
                     help="run RMH at every B&P node whose id is a multiple "
                          "of this (default 10)")
+    ap.add_argument("--gap", type=float, default=0.0,
+                    help="stop B&P when UB-LB gap %% is at most this value (0 = exact)")
     args = ap.parse_args()
     configure_logging(verbose=args.verbose)
 
@@ -79,7 +83,8 @@ def main() -> int:
 
     t0 = time.time()
     incumbent = branch_and_price(
-        root, run_cg_at_node, run_dive, run_rmh, rmh_every=args.rmh_every
+        root, run_cg_at_node, run_dive, run_rmh,
+        rmh_every=args.rmh_every, gap_pct=args.gap,
     )
     _log.info("done in %.1fs, optimum=%.2f", time.time() - t0, incumbent.cost)
     if incumbent.sol:
@@ -90,4 +95,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda *_: os._exit(1))
     sys.exit(main())

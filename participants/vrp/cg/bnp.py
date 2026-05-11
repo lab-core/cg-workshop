@@ -153,6 +153,7 @@ def branch_and_price(
     run_rmh:  Callable[[BnPNode, BnPIncumbent], float],
     rmh_every: int = 10,
     eps: float = 1e-6,
+    gap_pct: float = 0.0,
 ) -> BnPIncumbent:
     """Best-first arc-branching B&P with Lagrangian pruning.
 
@@ -203,8 +204,16 @@ def branch_and_price(
         nodes_processed += 1
         open_lbs = [n.lb for n in open_nodes if n.lb > -math.inf]
         global_lb = min([node.lb] + open_lbs)
-        _log.info("node %d: node LB=%.2f  global LB=%.2f  incumbent=%.2f",
-                  node.id, node.lb, global_lb, incumbent.cost)
+        if math.isfinite(incumbent.cost) and math.isfinite(global_lb):
+            gap = 100.0 * (incumbent.cost - global_lb) / abs(incumbent.cost)
+            _log.info("node %d: node LB=%.2f  global LB=%.2f  UB=%.2f  gap=%.2f%%",
+                      node.id, node.lb, global_lb, incumbent.cost, gap)
+            if gap_pct > 0.0 and gap <= gap_pct:
+                _log.info("B&P stopped: gap=%.3f%% <= %.2f%%", gap, gap_pct)
+                break
+        else:
+            _log.info("node %d: node LB=%.2f  global LB=%.2f  UB=%.2f",
+                      node.id, node.lb, global_lb, incumbent.cost)
 
         if node.lb >= incumbent.cost - eps:
             _log.info("node %d pruned after CG (LB=%.2f >= inc=%.2f)",

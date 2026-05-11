@@ -1,6 +1,8 @@
 """Exercise C check script -- run the full CG loop on a small instance."""
 
 import argparse
+import os
+import signal
 import sys
 import time
 
@@ -19,8 +21,10 @@ def main() -> int:
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
     ap.add_argument("--K", type=int, default=50, help="multi-column cap")
-    ap.add_argument("--alpha", type=float, default=0.0,
+    ap.add_argument("--alpha", "-a", type=float, default=0.0,
                     help="Wentges smoothing parameter (0 disables)")
+    ap.add_argument("--gap", type=float, default=0.0,
+                    help="stop CG when LP-LB gap %% is at most this value (0 = exact)")
     args = ap.parse_args()
     configure_logging(verbose=args.verbose)
 
@@ -31,7 +35,7 @@ def main() -> int:
 
     vrp = VRP(inst, K_MAX=args.K, alpha=args.alpha)
     t0 = time.time()
-    master, sol = vrp.solve_cg()
+    master, sol = vrp.solve_cg(gap_pct=args.gap)
     dt = time.time() - t0
 
     _log.info("iterations    : %d",  vrp.stats.iterations)
@@ -52,4 +56,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda *_: os._exit(1))
     sys.exit(main())

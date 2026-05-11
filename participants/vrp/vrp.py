@@ -106,7 +106,8 @@ class VRP:
     #  EX-C.2 ... EX-C.4 -- the CG main loop
     # ----------------------------------------------------------------
     def solve_cg(self, verbose: bool = True,
-                 incumbent_ub: float = math.inf) -> tuple[MasterProblem, MPSolution]:
+                 incumbent_ub: float = math.inf,
+                 gap_pct: float = 0.0) -> tuple[MasterProblem, MPSolution]:
         """Run column generation until no negative-reduced-cost column.
 
         IMPORTANT
@@ -132,7 +133,7 @@ class VRP:
                   len(self.paths), self.instance.get_nb_vehicles(),
                   self.K_MAX, self.alpha,
                   f"{incumbent_ub:.2f}" if math.isfinite(incumbent_ub) else "inf")
-        _log.info("%-4s %-5s %-10s %-10s %-10s %-7s %-10s",
+        _log.info("%-4s %-5s %-15s %-15s %-10s %-7s %-10s",
                   "iter", "cols", "LP", "LB", "UB", "gap%", "min_rc")
 
         nb_iter = 0
@@ -195,6 +196,13 @@ class VRP:
             if math.isfinite(incumbent_ub) and LB >= incumbent_ub - self.EPSILON:
                 _log.info("CG cut short: LB=%.2f >= UB=%.2f", LB, incumbent_ub)
                 break
+
+            # Gap-based early termination.
+            if gap_pct > 0.0 and math.isfinite(LB) and abs(sol.cost) > 1e-10:
+                cg_gap = 100.0 * (sol.cost - LB) / abs(sol.cost)
+                if cg_gap <= gap_pct:
+                    _log.info("CG stopped: gap=%.3f%% <= %.2f%%", cg_gap, gap_pct)
+                    break
 
             nb_iter += 1
 

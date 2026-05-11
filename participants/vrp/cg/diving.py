@@ -25,6 +25,7 @@ def restricted_master_heuristic(master: MasterProblem) -> MPSolution:
 
 def plain_dive(master: MasterProblem,
                run_cg: Callable[[], MPSolution],
+               ub: float = float("inf"),
                eps: float = 1e-6,
                max_iter: int = 200) -> Optional[MPSolution]:
     """Iterative diving heuristic.

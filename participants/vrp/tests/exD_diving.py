@@ -2,6 +2,8 @@
 
 import argparse
 import math
+import os
+import signal
 import sys
 import time
 
@@ -64,4 +66,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda *_: os._exit(1))
     sys.exit(main())
