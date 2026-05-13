@@ -5,7 +5,7 @@ Glues together
 
 Holes (cross-referenced in lab.pdf):
     EX-A.3  --  generate_initial_paths (one round-trip per customer).
-    EX-B.3  --  solve_subproblem (call PricingGraph.build then .solve).
+    EX-B.3  --  solve_subproblem (build graph once, update_costs + solve each iter).
     EX-C.2  --  the CG main loop with multi-column return.
     EX-C.3  --  Wentges dual smoothing (optional, recommended).
     EX-C.4  --  per-iteration log line including the Lagrangian bound.
@@ -69,6 +69,7 @@ class VRP:
         self._next_path_id = 0
         self._prev_dual_by_id: dict[int, float] = {}
         self.stats = CGStats()
+        self._pricing_graph: Optional[PricingGraph] = None
 
     # ----------------------------------------------------------------
     #  EX-A.3 -- initial pool: one round-trip per customer
@@ -93,16 +94,18 @@ class VRP:
     #  EX-B.3 -- pricing call
     # ----------------------------------------------------------------
     def solve_subproblem(self, dual_by_id: dict[int, float]):
-        """Build a PricingGraph for the current duals and solve it."""
+        """Update arc costs from duals and solve the pricing problem."""
         # === EX-B.3 ===========================================
         # TODO:
         #   1. Make sure dual_by_id contains an entry for the depot.
         #      The CG loop already sets it to sol.sigma before calling
         #      here; use setdefault as a fallback for standalone calls:
         #      dual_by_id.setdefault(self.instance.get_depot_customer().id, 0.0)
-        #   2. Build a PricingGraph(...).build(dual_by_id).
-        #   3. Return the result of graph.solve()  (sorted ascending
-        #      by reduced cost; we will filter < -EPSILON in the loop).
+        #   2. Build the graph once (lazy): if self._pricing_graph is None,
+        #      create PricingGraph(...) and call .build() (no duals needed).
+        #      Store it in self._pricing_graph.
+        #   3. Call self._pricing_graph.update_costs(dual_by_id) to set
+        #      the current reduced costs, then return .solve().
         # =====================================================
         raise NotImplementedError("EX-B.3: pricing graph build & solve")
 

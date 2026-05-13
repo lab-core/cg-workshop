@@ -17,15 +17,16 @@ from typing import Optional
 
 from vrp.log import get_logger
 
+from rcspp._core.graph import Row
 from rcspp.graph import ResourceGraph
 from rcspp.resource import (
+    AdditionExtensionFunction,
     MinMaxFeasibilityFunction,
-    RealAdditionExtensionFunction,
-    RealTrivialFeasibilityFunction,
-    RealValueCostFunction,
-    RealValueDominanceFunction,
     TimeWindowExtensionFunction,
     TimeWindowFeasibilityFunction,
+    TrivialFeasibilityFunction,
+    ValueCostFunction,
+    ValueDominanceFunction,
 )
 
 from vrp.instance import Customer, Instance
@@ -71,35 +72,36 @@ class PricingGraph:
     def _register_resources(self) -> None:
         # Resource 0: COST (cumulative reduced cost).
         self.graph.add_real_resource(
-            RealAdditionExtensionFunction(),
-            RealTrivialFeasibilityFunction(),
-            RealValueCostFunction(),
-            RealValueDominanceFunction(),
+            AdditionExtensionFunction(),
+            TrivialFeasibilityFunction(),
+            ValueCostFunction(),
+            ValueDominanceFunction(),
         )
         # Resource 1: TIME (with time windows).
         self.graph.add_real_resource(
             TimeWindowExtensionFunction(self._min_tw),
             TimeWindowFeasibilityFunction(self._max_tw),
-            RealValueCostFunction(),
-            RealValueDominanceFunction(),
+            ValueCostFunction(),
+            ValueDominanceFunction(),
         )
         # Resource 2: DEMAND / load.
         self.graph.add_real_resource(
-            RealAdditionExtensionFunction(),
+            AdditionExtensionFunction(),
             MinMaxFeasibilityFunction(0.0, self.instance.get_capacity()),
-            RealValueCostFunction(),
-            RealValueDominanceFunction(),
+            ValueCostFunction(),
+            ValueDominanceFunction(),
         )
 
     # ----------------------------------------------------------------
     #  EX-B.1 -- nodes and arcs
     # ----------------------------------------------------------------
-    def build(self, dual_by_id: dict[int, float]) -> None:
-        """Add nodes + arcs to the graph using the given dual prices.
+    def build(self) -> None:
+        """Add nodes + arcs to the graph with base costs and dual rows.
+
+        The graph is built once; call update_costs(dual_by_id) before each solve.
 
         Conventions:
-        * pi_0 = sigma (vehicle-count dual) for the depot.
-        * sink_id = len(customers); same physical depot but a separate
+        * sink_id = len(customers): same physical depot but a separate
           node so that empty paths are filtered out by the labelling.
         """
         # === EX-B.1 ===========================================
@@ -116,12 +118,16 @@ class PricingGraph:
         # =====================================================
         raise NotImplementedError("EX-B.1: build pricing graph")
 
+    def update_costs(self, dual_by_id: dict[int, float]) -> None:
+        """Recompute arc reduced costs from dual prices without rebuilding the graph."""
+        self.graph.update_reduced_costs(dual_by_id)
+
     # ----------------------------------------------------------------
     #  EX-B.2 -- arc cost and resource increments
     # ----------------------------------------------------------------
     def _add_arc(self, origin_id: int, dest_id: int,
                  origin: Customer, dest: Customer,
-                 dual_by_id: dict[int, float], arc_id: int) -> None:
+                 arc_id: int) -> None:
         # Skip arcs that B&P has forbidden (Exercise E).
         if (origin_id, dest_id) in self.forbidden_arcs:        # EX-E.4
             return                                              # EX-E.4
@@ -137,24 +143,33 @@ class PricingGraph:
                 return
 
         # === EX-B.2 ===========================================
-        # TODO: compute the arc cost and three resource increments,
-        # then call self.graph.add_arc(...).
+        # TODO: compute the three resource increments and add the arc.
         #
-        # Convention used in this workshop:
-        #   reduced_cost = distance - pi_origin
-        # i.e. the dual is paid when *leaving* a customer.
-        # For the depot: pi_0 = sigma (vehicle-count dual), set by the
-        # CG loop via dual_by_id[depot_id] = sol.sigma before pricing.
+        # Convention: reduced_cost = distance - pi_origin
+        # Instead of baking the dual in, store the *base cost* (distance)
+        # and a dual Row so update_costs() can update reduced costs cheaply:
+        #   rc = arc.cost - sum(row.coefficient * dual[row.index])
+        #      = distance - 1.0 * pi_origin
+        #
+        # Special case: depot→sink arc is inert (prevents empty routes).
+        # Assign infinite base cost and no dual row:
+        #   if origin.depot and dest.depot: use math.inf as cost, no Row.
         #
         # Resource increments (in the order registered above):
-        #   resource 0 (cost)   = reduced_cost
+        #   resource 0 (cost)   = distance  (or math.inf for depot→sink)
         #   resource 1 (time)   = origin.service_time + distance
         #   resource 2 (demand) = dest.demand
         #
-        # API to call:
+        # API to call (normal arc):
         #   self.graph.add_arc(
-        #       ([(reduced_cost,), (travel_time,), (demand,)],),
-        #       origin_id, dest_id, arc_id, reduced_cost,
+        #       (distance, travel_time, demand),
+        #       origin_id, dest_id, arc_id, distance,
+        #       [Row(origin_id, 1.0)],
+        #   )
+        # API to call (depot→sink inert arc):
+        #   self.graph.add_arc(
+        #       (math.inf, travel_time, demand),
+        #       origin_id, dest_id, arc_id, math.inf,
         #   )
         # =====================================================
         raise NotImplementedError("EX-B.2: arc cost & resource increments")

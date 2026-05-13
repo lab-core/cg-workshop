@@ -32,10 +32,10 @@ def main() -> int:
     try:
         from rcspp.graph import ResourceGraph
         from rcspp.resource import (
-            RealAdditionExtensionFunction,
-            RealValueDominanceFunction,
-            RealValueCostFunction,
-            RealTrivialFeasibilityFunction,
+            AdditionExtensionFunction,
+            ValueDominanceFunction,
+            ValueCostFunction,
+            TrivialFeasibilityFunction,
         )
         import rcspp
     except ImportError as e:
@@ -58,14 +58,14 @@ def main() -> int:
     # ---------- rcspp: tiny shortest path -----------------------------
     g = ResourceGraph()
     g.add_real_resource(
-        RealAdditionExtensionFunction(),
-        RealTrivialFeasibilityFunction(),
-        RealValueCostFunction(),
-        RealValueDominanceFunction(),
+        AdditionExtensionFunction(),
+        TrivialFeasibilityFunction(),
+        ValueCostFunction(),
+        ValueDominanceFunction(),
     )
     g.add_node(0, True, False)
     g.add_node(1, False, True)
-    g.add_arc(([(-2.0,)],), 0, 1, 0, -2.0)
+    g.add_arc(-2.0, 0, 1, 0, -2.0)
     sols = g.solve()
     if not sols:
         _log.error("rcspp returned no solution on a 2-node graph.")
