@@ -142,12 +142,16 @@ $ source .venv/bin/activate         # macOS / Linux
 (.venv) $ python -m pip install --upgrade pip
 (.venv) $ pip install -r requirements.txt
 \end{lstlisting}
+  \texttt{requirements.txt} pulls \texttt{highspy}, \texttt{numpy},
+  \texttt{networkx} and \texttt{matplotlib} (used by the visualisation
+  helpers in \texttt{vrp.plot}).
+\medskip
   Then install the workshop pricer:
 \begin{lstlisting}[style=sh]
 (.venv) $ pip install \
     --index-url https://test.pypi.org/simple/ \
     --extra-index-url https://pypi.org/simple \
-    rcspp
+    rcspp==0.0.1.dev0
 \end{lstlisting}
   \begin{warnbox}[Always activate the venv]
     Every new terminal must \texttt{source .venv/bin/activate} first,
@@ -183,11 +187,13 @@ $ source .venv/bin/activate         # macOS / Linux
 \begin{lstlisting}[style=sh,basicstyle=\ttfamily\tiny]
 participants/
 +-- README.md, requirements.txt, theory.pdf, lab.pdf
-+-- instances/                 toy.txt + Solomon files (+ duals/R101/iter_*.txt)
++-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_*.txt)
 +-- solutions/                 reference solutions (do not peek!)
 +-- vrp/
     +-- instance.py, instance_reader.py    (read-only)
-    +-- smoke_test.py                      (no holes)
+    +-- smoke_test.py                      environment check
+    +-- log.py                             vrp.log configure / get_logger
+    +-- plot.py                            CG / B&P convergence figures
     +-- vrp.py                             HOLES: A.3, B.3, C.2-C.4
     +-- cg/
     |   +-- master_problem.py              HOLES: A.1, A.2, D.1
@@ -198,7 +204,8 @@ participants/
     |   +-- mp_solution.py, path.py        (read-only)
     +-- tests/                             progressive checks (NOT pytest)
         +-- exA_master.py, exB_pricing.py, exC_cg.py,
-        +-- exD_diving.py, exE_bnp.py
+        +-- exD_diving.py, exE_bnp.py,
+        +-- compare_cg.py, compare_bnp.py  parametric studies + matplotlib
 \end{lstlisting}
 \end{frame}
 
@@ -331,11 +338,15 @@ participants/
             $\boldsymbol\pi\!\leftarrow\!\alpha\boldsymbol\pi^{prev}
                                      +(1-\alpha)\boldsymbol\pi$.
       \item \textbf{C.4}: per-iteration log line
-            \texttt{iter, n\_cols, LP, LB, gap}.
+            \texttt{iter, n\_cols, LP, LB, UB, gap}, plus the gap-stop
+            (\texttt{gap\_pct}) and UB-cut (\texttt{incumbent\_ub}) early
+            exits already wired in \texttt{solve\_cg}.
       \item \textbf{C.5}: in \texttt{cg/bound.py}, implement
             $\text{LB}\!=\!\sum_i\pi_i + K\sigma + K\!\cdot\!\min(0,\redcost^*)$
             (Trick~7 in the theory deck).
     \end{itemize}
+    Try \texttt{--K 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
+    (or \texttt{compare\_cg} below) to feel each knob.
   \end{exbox}
   \begin{tipbox}[Don't rebuild the master]
     Once it is constructed (Exercise A) you should never rebuild it. Each
@@ -374,6 +385,9 @@ iter   ncols   LP        gap-vs-LB
             solution.
       \item \textbf{D.2, D.3}: in \texttt{cg/diving.py}, pick the column
             with the largest fractional value, fix it to~1, then re-run CG.
+            \texttt{plain\_dive} also takes an optional \texttt{ub}: when
+            the LP at a dive node already exceeds \texttt{ub}, the dive
+            aborts (saves work inside B\&P).
     \end{itemize}
   \end{exbox}
 \begin{lstlisting}[style=sh]
@@ -408,12 +422,22 @@ iter   ncols   LP        gap-vs-LB
     \begin{itemize}\small
       \item \textbf{E.1}: aggregated arc flow $\bar y_{uv}$.
       \item \textbf{E.2}: most-fractional arc.
-      \item \textbf{E.3}: two children -- forbid / force.
+      \item \textbf{E.3}: two children -- forbid / force. The
+            \emph{force} branch uses \texttt{\_up\_compatible(p,u,v)}: it
+            drops every path that leaves $u$ to some $w\!\ne\!v$ or
+            arrives at $v$ from $w\!\ne\!u$.
       \item \textbf{E.4}: in \texttt{pricing.py}, skip forbidden arcs at
             graph-build time.
     \end{itemize}
-    The B\&P search loop is \alert{already coded}. The Lagrangian bound
-    used for pruning was implemented in Exercise C (Trick~7).
+    The B\&P search loop is \alert{already coded} (\texttt{cg/bnp.py})
+    and returns a \texttt{BnPIncumbent} carrying \texttt{cost},
+    \texttt{sol} (the integer routes) and the
+    \texttt{ub\_history / lb\_history / time\_history} traces used by
+    \texttt{plot\_bnp\_progress}.
+    The Lagrangian bound used for pruning was implemented in
+    Exercise~C (Trick~7).
+    Knobs: \texttt{--gap} (stop within $\delta\%$),
+    \texttt{--no-depth-first}, \texttt{--rmh-every}.
   \end{exbox}
   \begin{tipbox}[Heuristic schedule]
     The provided loop runs \alert{a dive at the root}, then RMH every $X$
@@ -436,7 +460,48 @@ iter   ncols   LP        gap-vs-LB
 \end{frame}
 
 % =====================================================================
-\section{8. Troubleshooting}
+\section{8. Comparison runners}
+% =====================================================================
+
+\begin{frame}[fragile]{Two scripts to compare configurations}
+  After exercises~C and~E you have working CG and B\&P. The lab kit
+  ships two helpers that re-run them with different knobs and plot the
+  convergence side-by-side (\texttt{vrp.plot} uses \texttt{matplotlib}):
+
+\begin{lstlisting}[style=sh]
+# CG -- compare pricing batch sizes
+python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+# CG -- compare Wentges smoothing
+python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
+# B&P -- compare gap thresholds
+python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
+# B&P -- depth-first vs best-first
+python -m vrp.tests.compare_bnp --instance R101.txt --search both
+\end{lstlisting}
+  Add \texttt{--save figure.png} to write the figure to disk instead of
+  displaying it.
+\end{frame}
+
+\begin{frame}{What the figures show}
+  \begin{itemize}\small
+    \item \texttt{plot\_cg\_convergence} -- LP \& LB per iteration, plus
+          the duality gap, one curve per run. Reads
+          \texttt{CGStats.lp\_history} and \texttt{CGStats.lb\_history}.
+    \item \texttt{plot\_bnp\_progress} -- UB / LB and gap per node
+          \emph{and} per wall-clock second, one curve per run. Reads
+          \texttt{BnPIncumbent.\{ub,lb,time\}\_history}.
+  \end{itemize}
+  Both \texttt{CGStats} and \texttt{BnPIncumbent} record their history
+  as the algorithm progresses -- no extra wiring needed.
+  \begin{keybox}[Use the runners for the lab write-up]
+    Pick one figure that surprises you (e.g.\ where best-first beats
+    depth-first, or where Wentges $\alpha\!=\!0.5$ wins on iterations
+    but loses on time) and add a paragraph of analysis to your hand-in.
+  \end{keybox}
+\end{frame}
+
+% =====================================================================
+\section{9. Troubleshooting}
 % =====================================================================
 
 \begin{frame}[fragile]{Five errors that always show up}
@@ -465,7 +530,7 @@ iter   ncols   LP        gap-vs-LB
 \end{frame}
 
 % =====================================================================
-\section{9. Cheat sheet}
+\section{10. Cheat sheet}
 % =====================================================================
 
 \begin{frame}[fragile]{HiGHS in Python -- the calls you need}

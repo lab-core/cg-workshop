@@ -1329,6 +1329,24 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
   \end{itemize}
 \end{frame}
 
+\begin{frame}{Two new ways to stop CG early (lab \texttt{gap\_pct} \& \texttt{incumbent\_ub})}
+  In the lab, \texttt{VRP.solve\_cg(incumbent\_ub, gap\_pct)} can stop
+  before pricing returns $\redcost^*\ge 0$:
+  \begin{itemize}\small
+    \item \textbf{UB cut} -- when $LB\ge UB-\varepsilon$, the
+          subtree is already proved optimal: no point in adding more columns.
+          B\&P passes the current incumbent down to each child's CG run.
+    \item \textbf{Gap cut} -- when $(z^{\rmp}-LB)/|z^{\rmp}|\le\delta\%$.
+          Useful at the root for an approximate $\delta$-optimal LP.
+  \end{itemize}
+  \begin{keybox}[Why a gap stop is acceptable]
+    A solver run with \texttt{gap\_pct=2} returns $z^{\rmp}$ and an LB
+    that bracket $z^*$ within $2\%$ -- still a certified bound, even if
+    incomplete. Often saves the last 80\% of iterations spent in
+    tailing-off.
+  \end{keybox}
+\end{frame}
+
 \begin{frame}{Trick 8 -- Symmetry and elementarity}
   \begin{itemize}\small
     \item In identical-vehicle VRP, set-partitioning is naturally
@@ -1759,21 +1777,28 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
 
 \begin{frame}{The B\&P algorithm template}
 \begin{algo}[Branch-and-price]
-\item incumbent $\leftarrow +\infty$; tree $\leftarrow\{$root$\}$
-\item \textbf{while} tree non-empty
-\item \Indent pick node $N$; pool$_N$ $\leftarrow$ filter(parent pool, branch)
-\item \Indent run CG on $N$, with Lagrangian bound LB at every iteration
-\item \Indent \textbf{if} LB $\ge$ incumbent: \textbf{prune}
-\item \Indent \textbf{if} LP integer: incumbent $\leftarrow\min(\text{incumbent}, z^{\rmp})$; \textbf{prune}
-\item \Indent run heuristic (RMH/dive) on pool$_N$; update incumbent
-\item \Indent pick branching variable; create children
+\item $\text{UB}\leftarrow +\infty$;\;\; open $\leftarrow\{$root$\}$;\;\; global\_LB $\leftarrow -\infty$
+\item \textbf{while} open non-empty
+\item \Indent $N \leftarrow$ pick-next(open) \quad\textcolor{accent2}{\# best-first OR depth-first dive}
+\item \Indent \textbf{if} $N.\text{LB}\ge\text{UB}-\varepsilon$: \textbf{prune}
+\item \Indent run CG on $N$ \emph{passing} UB;\; \quad\textcolor{accent2}{\# CG stops early if $LB\ge UB$}
+\item \Indent global\_LB $\leftarrow \min(N.\text{LB},\;\min_{M\in\text{open}} M.\text{LB})$
+\item \Indent \textbf{if} $(\text{UB}-\text{global\_LB})/|\text{UB}|\le\delta\%$: \textbf{stop} (gap reached)
+\item \Indent \textbf{if} $N.\text{LB}\ge\text{UB}-\varepsilon$: \textbf{prune}
+\item \Indent \textbf{if} LP integer: $\text{UB}\leftarrow\min(\text{UB},\,z^{\rmp})$; \textbf{prune}
+\item \Indent \textbf{else} run heuristic (dive at root, RMH every $X$); update UB
+\item \Indent pick branching arc $(u,v)$; create down, up children
+\item \Indent \textbf{if} depth\_first: process \emph{up}-child immediately; queue down
+\item \Indent \textbf{else}: queue both, sort open by LB
 \item \textbf{end while}
 \end{algo}
   \begin{itemize}\small
-    \item Node selection: best-first by LB, then DFS for memory.
-    \item Pool filter: easy with arc branching (drop columns using forbidden
-          arc), trickier with Ryan-Foster (drop columns visiting both / drop
-          columns visiting one xor the other).
+    \item \alert{Depth-first} (default in the lab): dive into the up-child --
+          tighter constraints, fewer feasible columns, often integer fast.
+    \item \alert{Best-first}: explore the open node with the smallest LB --
+          best LB growth but heavier memory.
+    \item \alert{global\_LB} is the smallest LB across \emph{all} open
+          nodes; pair it with UB to certify a gap.
   \end{itemize}
 \end{frame}
 
@@ -1856,19 +1881,91 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
     \end{itemize}
     The B\&P loop itself is already coded in \texttt{bnp.py}; you fill
     only the helpers \texttt{EX-E.1, E.2, E.3, E.5}. The Lagrangian
-    bound is reused from Exercise C / Trick~7.
+    bound is reused from Exercise C / Trick~7. Knobs to play with at the
+    end: \texttt{--gap} (stop within $\delta\%$),
+    \texttt{--no-depth-first} (pure best-first),
+    \texttt{--rmh-every} (heuristic frequency).
 
     \alert{Time budget: 35 minutes -- end-of-workshop deliverable.}
   \end{exbox}
 \end{frame}
 
+% =====================================================================
+\section{Visualising convergence}
+% =====================================================================
+
+\begin{frame}{Seeing the algorithm}
+  Two helpers ship with the lab kit (\texttt{vrp.plot}) and turn the
+  CG / B\&P traces into \alert{convergence figures}:
+  \begin{itemize}\small
+    \item \texttt{plot\_cg\_convergence(runs)} -- LP \& LB per iteration
+          plus the duality gap, for several CG configurations on the same
+          axes. Powered by \texttt{CGStats.lp\_history},
+          \texttt{CGStats.lb\_history} (filled by every CG call).
+    \item \texttt{plot\_bnp\_progress(runs)} -- UB / LB and gap per
+          \emph{node processed} (top row) and per \emph{wall-clock second}
+          (bottom row), for several B\&P configurations.
+          Powered by the \texttt{BnPIncumbent.\{ub,lb,time\}\_history}
+          fields that the B\&P engine records as it goes.
+  \end{itemize}
+  \begin{keybox}[Why look at the curves]
+    Picking K, $\alpha$, gap and search order from a table of final
+    numbers misses the dynamics. The convergence curves show
+    \emph{when} each parameter pays off (early vs late) and reveal
+    tailing-off vs sustained progress.
+  \end{keybox}
+\end{frame}
+
+\begin{frame}[fragile]{Comparison runners}
+\begin{lstlisting}[language=bash]
+# CG -- batch sizes
+python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+
+# CG -- Wentges smoothing
+python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
+
+# B&P -- gap thresholds
+python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
+
+# B&P -- depth-first vs best-first
+python -m vrp.tests.compare_bnp --instance R101.txt --search both
+
+# B&P -- pricing batch sizes
+python -m vrp.tests.compare_bnp --instance R101.txt --Ks 5 20 50
+\end{lstlisting}
+  Add \texttt{--save figure.png} to write the figure to disk instead of
+  displaying it. Every CG / B\&P run inside the comparison uses the
+  same logger, so \texttt{-v} also pours iteration logs to stderr.
+\end{frame}
+
+\begin{frame}{What the experiments tell you}
+  \begin{itemize}\setlength{\itemsep}{4pt}
+    \item \textbf{K vs iterations} -- $K\!=\!1$ takes many iterations but
+          each is cheap; $K\!=\!50$ takes few iterations but each LP is
+          heavier. Expect the wall-clock curve to be U-shaped.
+    \item \textbf{Wentges $\alpha$} -- $\alpha\!\in\![0.3,0.7]$ usually
+          halves iterations on Solomon-100. Too high ($\alpha\!=\!0.9$)
+          makes LB lag, hurting the gap-stop.
+    \item \textbf{Gap stop} -- on R101, \texttt{gap=2\%} typically closes
+          80\% of the optimality gap in 20\% of the time.
+    \item \textbf{Depth-first vs best-first} -- depth-first finds an
+          incumbent faster (good for pruning); best-first closes the
+          \alert{global LB} faster (good when you want a small certified
+          gap). Hybrid solvers do both.
+  \end{itemize}
+\end{frame}
+
 \begin{frame}{Hand-off to the lab}
   \begin{itemize}\small
-    \item All five exercises (A--E) are in the separate \alert{lab kit},
-          with a per-exercise README and unit tests.
-    \item Open the \texttt{lab/} folder shipped with this deck.
+    \item All five exercises (A--E) are in the \alert{lab kit}
+          (\texttt{participants/}), with a per-exercise check script and
+          a reference solution under \texttt{solutions/}.
     \item The lab deck (\texttt{lab.pdf}) walks you through installation,
-          file map, and the expected outputs.
+          file map, expected outputs and the optional comparison runners
+          (\texttt{compare\_cg}, \texttt{compare\_bnp}).
+    \item Every step logs to \texttt{stderr} via the \texttt{vrp.log}
+          module; \texttt{-v} switches to \texttt{DEBUG}. B\&P lines are
+          colour-tagged so the tree progress stands out at a glance.
   \end{itemize}
 \end{frame}
 

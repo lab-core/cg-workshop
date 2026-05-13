@@ -32,7 +32,7 @@ dependencies on regular PyPI):
 pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple \
-  rcspp
+  rcspp==0.0.1.dev0
 ```
 
 Run the smoke check — this exercises `highspy` + `rcspp` and **does not
