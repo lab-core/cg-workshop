@@ -47,6 +47,7 @@ class VRP:
         self.paths: list[Path] = []
         self._next_path_id = 0
         self._prev_dual_by_id: dict[int, float] = {}
+        self._path_signatures: set[tuple] = set()
         self.stats = CGStats()
         self._pricing_graph: Optional[PricingGraph] = None
 
@@ -72,6 +73,7 @@ class VRP:
     def _new_path(self, cost: float, visited_nodes: List[int]) -> Path:
         p = Path(self._next_path_id, cost, visited_nodes)
         self._next_path_id += 1
+        self._path_signatures.add(tuple(p.visited_nodes))
         return p
 
     # ----------------------------------------------------------------

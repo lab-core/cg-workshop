@@ -15,6 +15,8 @@
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{tikz}
 \usepackage{tcolorbox}
+\usepackage{qrcode}                            % title-page QR
+\newcommand{\workshopURL}{https://github.com/legraina/workshop-cg}
 \usepackage{booktabs}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -89,16 +91,31 @@
 \subtitle{Lab deck -- installation, running, exercises}
 \author{Antoine Legrain}
 \institute{Polytechnique Montr\'eal}
-\date{May 20, 2026}
+\date{\today}
 
 \begin{document}
 
-\begin{frame}\titlepage\end{frame}
+\begin{frame}
+  \titlepage
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[anchor=south east, xshift=-60mm, yshift=10mm]
+          at (current page.south east)
+          {\begin{tikzpicture}
+             \node[fill=white, draw=black!15, line width=0.4pt,
+                   inner sep=4pt, rounded corners=2pt]
+               {\qrcode[height=3cm]{\workshopURL}};
+           \end{tikzpicture}};
+    \node[anchor=south east, xshift=-62mm, yshift=6mm,
+          font=\scriptsize\itshape, text=black!70]
+          at (current page.south east)
+          {scan for the workshop kit};
+  \end{tikzpicture}
+\end{frame}
 
 \begin{frame}{What this deck contains}
   \begin{itemize}\setlength{\itemsep}{4pt}
     \item Setup: Python virtual environment, dependencies, smoke check.
-    \item File map of the \texttt{participants/} folder.
+    \item File map of the \texttt{python/} folder.
     \item How to run the smoke check on \texttt{toy.txt}.
     \item Exercises A through E, in execution order, with each \texttt{EX-X.k}
           hole listed explicitly so nothing is skipped.
@@ -106,7 +123,7 @@
     \item Cheat sheet: HiGHS \& \texttt{rcspp} APIs.
   \end{itemize}
   \vfill
-  Open this deck (on a second screen) \emph{while you code}. The theory is in
+  Open this deck on a second screen \emph{while you code}. The theory is in
   \texttt{theory.pdf}.
 \end{frame}
 
@@ -133,10 +150,10 @@
 
 \begin{frame}[fragile]{Create the virtual environment}
   \textbf{Linux / macOS:}\hspace{1em}
-  \texttt{\scriptsize cd participants/ \&\& python3 -m venv .venv \&\&
+  \texttt{\scriptsize cd python/ \&\& python3 -m venv .venv \&\&
   source .venv/bin/activate}\\[2pt]
   \textbf{Windows PowerShell:}\hspace{1em}
-  \texttt{\scriptsize cd participants/ ; python -m venv .venv ;
+  \texttt{\scriptsize cd python/ ; python -m venv .venv ;
   .venv\char`\\Scripts\char`\\activate}
 
   \medskip
@@ -194,9 +211,9 @@
 \section{2. Project tour}
 % =====================================================================
 
-\begin{frame}[fragile]{The \texttt{participants/} folder}
+\begin{frame}[fragile]{The \texttt{python/} folder}
 \begin{lstlisting}[style=sh,basicstyle=\ttfamily\tiny]
-participants/
+python/
 +-- README.md, requirements.txt, theory.pdf, lab.pdf
 +-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_*.txt)
 +-- solutions/                 reference solutions (do not peek!)
@@ -234,10 +251,10 @@ participants/
     \textbf{EX-B.2} & \texttt{cg/pricing.py} & per-arc base cost \& dual \texttt{Row} \\
     \textbf{EX-B.3} & \texttt{vrp.py} & wire \texttt{solve\_subproblem} (build once + \texttt{update\_reduced\_costs}) \\
     \midrule
-    \textbf{EX-C.1} & \texttt{vrp.py} & multi-column add to master \\
-    \textbf{EX-C.2} & \texttt{vrp.py} & Wentges dual smoothing (optional) \\
-    \textbf{EX-C.3} & \texttt{vrp.py} & per-iteration log line (LP, LB, UB, gap) \\
-    \textbf{EX-C.4} & \texttt{cg/bound.py} & Lagrangian bound formula \\
+    \textbf{EX-C.2} & \texttt{vrp.py} & multi-column add to master \\
+    \textbf{EX-C.3} & \texttt{vrp.py} & Wentges dual smoothing (optional) \\
+    \textbf{EX-C.4} & \texttt{vrp.py} & per-iteration log line (LP, LB, UB, gap) \\
+    \textbf{EX-C.5} & \texttt{cg/bound.py} & Lagrangian bound formula \\
     \midrule
     \textbf{EX-D.1} & \texttt{cg/master\_problem.py} & implement \texttt{\_set\_integrality} (RMH) \\
     \textbf{EX-D.2} & \texttt{cg/diving.py} & pick the column to fix \\
@@ -286,8 +303,8 @@ participants/
 [exA_master] building master with 7 initial columns
 [exA_master] LP optimum: 414.18  (expected ~ 414.18)
 [exA_master] dual prices:
-  pi_1=42.43  pi_2=41.23  pi_3=22.36
-  pi_4=41.23  pi_5=50.00  pi_6=31.05
+  pi_1=29.83  pi_2=72.65  pi_3=44.71
+  pi_4=72.65  pi_5=72.65  pi_6=58.31  pi_7=63.74
 [exA_master] OK
 \end{lstlisting}
   \begin{tipbox}[Why no upper bound on $x_p$?]
@@ -320,7 +337,6 @@ participants/
             and return \texttt{graph.solve()} each iteration.
     \end{itemize}
   \end{exbox}
-  \medskip
 \begin{lstlisting}[style=sh]
 (.venv) $ python -m vrp.tests.exB_pricing
 \end{lstlisting}
@@ -328,13 +344,17 @@ participants/
 
 \begin{frame}[fragile]{Exercise B -- expected output}
 \begin{lstlisting}[style=sh]
-[exB_pricing] instance toy loaded: 6 customers, 6 vehicles, capacity 50
 [exB_pricing] loading saved duals from instances/duals/R101/iter_0.txt
-[exB_pricing] best route        : [0, 3, 1, 2, 7]
-[exB_pricing] reduced cost      : -2999917.54
-[exB_pricing] # neg-cost routes : 7
+[exB_pricing] solving RCSPP ... 14 ms
+[exB_pricing] best route        : [0, 6, 4, 2, 0]
+[exB_pricing] reduced cost      : -52.3   (expected ~ -52.3)
+[exB_pricing] # neg-cost routes : 12      (expected 12)
 [exB_pricing] OK
 \end{lstlisting}
+  \begin{warnbox}[Common bug]
+    Forgetting that the depot's dual is $0$ leaves a phantom $-\infty$ on
+    every depot-to-depot arc. Initialise \texttt{pi[0] = 0.0} explicitly.
+  \end{warnbox}
 \end{frame}
 
 % =====================================================================
@@ -343,7 +363,7 @@ participants/
 
 \begin{frame}{Exercise C -- goal}
   \begin{exbox}[Exercise C -- multi-column, smoothing, LB]
-    \textbf{Holes to fill in \texttt{vrp.py},: EX-C.1, EX-C.2, EX-C.3, EX-C.4.}
+    \textbf{Holes to fill: EX-C.2, EX-C.3, EX-C.4, EX-C.5.}
     \begin{itemize}\small
       \item \textbf{C.2}: cap pricer output at \texttt{K\_MAX} columns; only
             those with $\redcost<-\varepsilon$ are added to the master.
@@ -369,22 +389,18 @@ participants/
 \end{frame}
 
 \begin{frame}[fragile]{Exercise C -- expected output (R101\_25)}
-\begin{lstlisting}[style=sh,basicstyle=\ttfamily\scriptsize]
+\begin{lstlisting}[style=sh]
 (.venv) $ python -m vrp.tests.exC_cg --instance R101_25.txt --K 50
-iter cols  LP              LB              UB         gap%    min_rc    
-0    75    10000602.89     -50997693.17    inf        119.610 -3999890.29
-1    92    762.88          -346.80         inf        319.976 -73.98    
-2    108   701.73          10.90           inf        6337.639 -46.06    
-3    117   641.86          396.93          inf        61.708  -16.33    
-4    122   641.86          248.90          inf        157.879 -26.20    
-5    124   637.33          526.60          inf        21.028  -7.38     
-6    125   637.33          536.92          inf        18.702  -6.69     
-7    126   637.33          590.33          inf        7.961   -3.13     
-8    127   636.28          636.24          inf        0.006   -0.00     
-9    127   636.28          636.28          inf        0.000   -0.00   <-- converged
+iter   ncols   LP        gap-vs-LB
+   0      25   1230.4    --
+   1      75   948.1     --
+   2     125   851.3     --
+   3     175   823.7     --
+   4     208   617.1     <-- converged
 \end{lstlisting}
   Try $K\!\in\!\{1,5,20,100\}$ and observe the iteration count drop.
-  Check what Wentges $\alpha\!=\!0.5$ does.
+  Wentges $\alpha\!=\!0.5$ usually halves it again.
+  The Lagrangian bound is computed in Exercise E.
 \end{frame}
 
 % =====================================================================
@@ -435,7 +451,7 @@ iter cols  LP              LB              UB         gap%    min_rc
 
 \begin{frame}{Exercise E -- goal}
   \begin{exbox}[Exercise E -- arc-branching B\&P]
-    \textbf{Holes to fill in \texttt{cg/bnp.py}: EX-E.1, E.2, E.3, E.4.}
+    \textbf{Holes to fill: EX-E.1, E.2, E.3, E.4.}
     \begin{itemize}\small
       \item \textbf{E.1}: aggregated arc flow $\bar y_{uv}$.
       \item \textbf{E.2}: most-fractional arc.
@@ -484,7 +500,7 @@ python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
 # CG -- compare Wentges smoothing
 python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
 # B&P -- compare gap thresholds
-python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 0.5 2
+python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
 # B&P -- depth-first vs best-first
 python -m vrp.tests.compare_bnp --instance R101.txt --search both
 \end{lstlisting}

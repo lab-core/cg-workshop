@@ -21,14 +21,14 @@ Python 3.10, but should work on 3.8+.
 
 For Linux / macOS users:
 ```bash
-cd participants/
+cd python/
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
 For Windows users with PowerShell:
 ```bash
-cd participants/
+cd python/
 python -m venv .venv
 .venv\Scripts\activate
 ```
@@ -72,7 +72,7 @@ python -m vrp.tests.exE_bnp
 ## 2. File map
 
 ```
-participants/
+python/
 ├── README.md                <-- you are here
 ├── requirements.txt
 ├── theory.pdf, lab.pdf

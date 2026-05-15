@@ -3,13 +3,13 @@
 **Spoiler — peek at this folder only after you have given each exercise a
 serious attempt!**
 
-`solutions/vrp/` mirrors `participants/vrp/` and contains a fully working
+`solutions/vrp/` mirrors `python/vrp/` and contains a fully working
 implementation of every TODO hole. The `vrp/` package layout is identical,
 so you can run the solution version of any check by inserting
 `solutions/` into the Python path:
 
 ```bash
-cd participants/
+cd python/
 source .venv/bin/activate
 
 PYTHONPATH=solutions python -m vrp.smoke_test
@@ -35,12 +35,12 @@ $\bar c^* = \min_p \bar c_p$ is the reduced-cost optimum from the
 ## Comparison and visualisation scripts
 
 Both `compare_cg` and `compare_bnp` are available in
-`solutions/vrp/tests/` and in the participants' `vrp/tests/` (identical
-content). Run them from the `participants/` directory with
+`solutions/vrp/tests/` and in the python' `vrp/tests/` (identical
+content). Run them from the `python/` directory with
 `PYTHONPATH=solutions`:
 
 ```bash
-cd participants/
+cd python/
 source .venv/bin/activate
 
 # CG — compare pricing batch sizes

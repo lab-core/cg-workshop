@@ -1,7 +1,7 @@
 """Helpers used by the check scripts to locate instance / dual files.
 
-Lets the same script run from `participants/` (typical) or
-`participants/solutions/` (when peeking at the reference).
+Lets the same script run from `python/` (typical) or
+`python/solutions/` (when peeking at the reference).
 """
 
 import os
