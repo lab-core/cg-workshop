@@ -1958,6 +1958,31 @@ python -m vrp.tests.compare_bnp --instance R101.txt --nb-cols-list 5 20 50
   \end{itemize}
 \end{frame}
 
+\begin{frame}{CG convergence -- Wentges smoothing ($\alpha$)}
+  \centering
+  \includegraphics[width=\textwidth]{plot/cg_alphas.png}
+\end{frame}
+
+\begin{frame}{CG convergence -- pricing batch size (\texttt{nb\_cols})}
+  \centering
+  \includegraphics[width=\textwidth]{plot/cg_cols.png}
+\end{frame}
+
+\begin{frame}{B\&P progress -- depth-first vs best-first}
+  \centering
+  \includegraphics[width=.9\textwidth]{plot/bnp_boths.png}
+\end{frame}
+
+\begin{frame}{B\&P progress -- pricing batch size (\texttt{nb\_cols})}
+  \centering
+  \includegraphics[width=.9\textwidth]{plot/bnp_cols.png}
+\end{frame}
+
+\begin{frame}{B\&P progress -- optimality-gap stop threshold}
+  \centering
+  \includegraphics[width=.9\textwidth]{plot/bnp_gaps.png}
+\end{frame}
+
 % =====================================================================
 \section{Recap and references}
 % =====================================================================
