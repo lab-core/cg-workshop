@@ -36,7 +36,7 @@ def load_duals(path: str) -> dict[int, float]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--instance", default="toy.txt")
+    ap.add_argument("--instance", default="R101_25.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
     ap.add_argument("--iter", type=int, default=0)

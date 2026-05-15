@@ -184,8 +184,8 @@
 (.venv) $ python -m vrp.tests.exD_diving
 (.venv) $ python -m vrp.tests.exE_bnp
 \end{lstlisting}
-  Each check defaults to the small \texttt{toy.txt} instance; pass
-  \texttt{--instance R101\_25.txt} for a larger Solomon file.
+  Most checks default to \texttt{toy.txt}; \texttt{exB\_pricing} defaults to
+  \texttt{R101\_25.txt}. Pass \texttt{{-}{-}instance <name>} to override.
 \end{frame}
 
 \begin{frame}[fragile]{Smoke check -- you should see this}
@@ -215,7 +215,7 @@
 \begin{lstlisting}[style=sh,basicstyle=\ttfamily\tiny]
 python/
 +-- README.md, requirements.txt, theory.pdf, lab.pdf
-+-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_*.txt)
++-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_0.txt)
 +-- solutions/                 reference solutions (do not peek!)
 +-- vrp/
     +-- instance.py, instance_reader.py    (read-only)
@@ -300,12 +300,14 @@ python/
 
 \begin{frame}[fragile]{Exercise A -- expected output}
 \begin{lstlisting}[style=sh]
-[exA_master] building master with 7 initial columns
-[exA_master] LP optimum: 414.18  (expected ~ 414.18)
-[exA_master] dual prices:
-  pi_1=29.83  pi_2=72.65  pi_3=44.71
-  pi_4=72.65  pi_5=72.65  pi_6=58.31  pi_7=63.74
-[exA_master] OK
+[ex.A] instance: toy.txt (6 customers, K=6 vehicles)
+[ex.A] building master with 6 initial columns
+[ex.A] LP optimum (with slacks): 228.30
+[ex.A] vehicle dual sigma     : -0.00
+[ex.A] customer duals:
+[ex.A]    pi_1=42.43  pi_2=41.23  pi_3=22.36
+[ex.A]    pi_4=41.23  pi_5=50.00  pi_6=31.05
+[ex.A] OK -- master is feasible and returns finite duals.
 \end{lstlisting}
   \begin{tipbox}[Why no upper bound on $x_p$?]
     The covering constraint $\sum_p a_{ip}\,x_p=1$ already bounds $x_p$
@@ -344,16 +346,15 @@ python/
 
 \begin{frame}[fragile]{Exercise B -- expected output}
 \begin{lstlisting}[style=sh]
-[exB_pricing] loading saved duals from instances/duals/R101/iter_0.txt
-[exB_pricing] solving RCSPP ... 14 ms
-[exB_pricing] best route        : [0, 6, 4, 2, 0]
-[exB_pricing] reduced cost      : -52.3   (expected ~ -52.3)
-[exB_pricing] # neg-cost routes : 12      (expected 12)
-[exB_pricing] OK
+[ex.B] loading saved duals from instances/duals/R101_25/iter_0.txt
+[ex.B] best route        : [0, 14, 15, 3, 24, 25, 26]
+[ex.B] reduced cost      : -138.98
+[ex.B] # neg-cost routes : 58
+[ex.B] OK
 \end{lstlisting}
   \begin{warnbox}[Common bug]
     Forgetting that the depot's dual is $0$ leaves a phantom $-\infty$ on
-    every depot-to-depot arc. Initialise \texttt{pi[0] = 0.0} explicitly.
+    every depot-to-depot arc. Initialise \texttt{pi[0] = $\sigma$} explicitly.
   \end{warnbox}
 \end{frame}
 
@@ -365,7 +366,7 @@ python/
   \begin{exbox}[Exercise C -- multi-column, smoothing, LB]
     \textbf{Holes to fill: EX-C.2, EX-C.3, EX-C.4, EX-C.5.}
     \begin{itemize}\small
-      \item \textbf{C.2}: cap pricer output at \texttt{K\_MAX} columns; only
+      \item \textbf{C.2}: cap pricer output at \texttt{nb\_cols} columns; only
             those with $\redcost<-\varepsilon$ are added to the master.
       \item \textbf{C.3}: Wentges smoothing
             $\boldsymbol\pi\!\leftarrow\!\alpha\boldsymbol\pi^{prev}
@@ -378,7 +379,7 @@ python/
             $\text{LB}\!=\!\sum_i\pi_i + K\sigma + K\!\cdot\!\min(0,\redcost^*)$
             (Trick~7 in the theory deck).
     \end{itemize}
-    Try \texttt{--nb-cols-list 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
+    Try \texttt{{-}{-}nb-cols-list 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
     (or \texttt{compare\_cg} below) to feel each knob.
   \end{exbox}
   \begin{tipbox}[Don't rebuild the master or the graph]
@@ -388,19 +389,23 @@ python/
   \end{tipbox}
 \end{frame}
 
-\begin{frame}[fragile]{Exercise C -- expected output (R101\_25)}
-\begin{lstlisting}[style=sh]
-(.venv) $ python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
-iter   ncols   LP        gap-vs-LB
-   0      25   1230.4    --
-   1      75   948.1     --
-   2     125   851.3     --
-   3     175   823.7     --
-   4     208   617.1     <-- converged
+\begin{frame}[fragile]{Exercise C -- expected output (R101\_25, K=25)}
+\begin{lstlisting}[style=sh,basicstyle=\ttfamily\scriptsize]
+(.venv) $ python -m vrp.tests.exC_cg
+[cg] iter cols  LP        LB         gap%
+[cg]    0   75  1246.16  -2228.39   155.9%
+[cg]    1   90   703.94   -447.45   257.3%
+[cg]    2   95   674.01      8.45   7877%
+[cg]    3  100   665.92    283.68   134.7%
+[cg]    4  104   640.45    444.00    44.2%
+[cg]    5  110   640.45    375.12    70.7%
+[cg]    6  114   637.33    547.37    16.4%
+[cg]    7  114   636.28    636.28     0.0%
+[cg] CG done in 8 iters, LP=636.28, LB=636.28, 89 cols added
 \end{lstlisting}
-  Try \texttt{--nb-cols} $\in\!\{1,5,20,100\}$ and observe the iteration count drop.
-  Wentges $\alpha\!=\!0.5$ usually halves it again.
-  The Lagrangian bound is computed in Exercise E.
+  Try \texttt{{-}{-}nb-cols} $\in\!\{1,5,20,100\}$ and observe the iteration count drop.
+  Wentges $\alpha\!=\!0.5$ often reduces iterations. Without \texttt{{-}{-}nb-vehicles 25}
+  the first 3 iterations show slack-inflated LP/LB values.
 \end{frame}
 
 % =====================================================================
@@ -424,24 +429,28 @@ iter   ncols   LP        gap-vs-LB
     \end{itemize}
   \end{exbox}
 \begin{lstlisting}[style=sh]
-(.venv) $ python -m vrp.tests.exD_diving --instance R101_25.txt
+(.venv) $ python -m vrp.tests.exD_diving
 \end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Exercise D -- expected output}
-\begin{lstlisting}[style=sh]
-[root]     LP=617.1
-[RMH]      incumbent=632.4   time=0.6s
-[dive 1]   fix p_42 (x=1.0)  CG -> LP=620.8
-[dive 2]   fix p_55 (x=0.92) CG -> LP=623.1
-...
-[dive end] incumbent=622.1   time=12.4s
-[summary]  RMH=632.4   dive=622.1   LP=617.1
+\begin{lstlisting}[style=sh,basicstyle=\ttfamily\scriptsize]
+[ex.D] root LP=636.3
+[ex.D] RMH incumbent (UB)=636.3, time=0.1s
+[ex.D] RMH solution:
+[ex.D]   cost=81.11  [0, 11, 19, 10, 26]
+[ex.D]   cost=59.67  [0, 7, 8, 26]
+[ex.D]   cost=46.47  [0, 2, 21, 26]
+...  (9 routes, total 636.28)
+[diving] dive start: LP=636.28
+[diving] dive end (integer): 0 fixes, UB=636.28
+[ex.D] summary: RMH UB=636.3   dive UB=636.3   LP=636.3
 \end{lstlisting}
-  \begin{tipbox}[Why diving sometimes loses]
-    On easy instances the root pool is already very rich and RMH wins.
-    Diving wins when fixing forces the pricer to discover \emph{new}
-    compatible columns the root never saw.
+  \begin{tipbox}[LP already integer on R101\_25]
+    The CG LP is integer for this instance -- RMH solves the exact MIP and
+    the dive terminates with 0 fixes.  On harder instances (e.g.\
+    \texttt{C101\_25.txt} or \texttt{RC101.txt}) you will see actual fixes
+    and a gap between LP and RMH. A good way to make the instance harder is to decrease the number of vehicles with \texttt{{-}{-}nb-vehicles}.
   \end{tipbox}
 \end{frame}
 
@@ -466,23 +475,30 @@ iter   ncols   LP        gap-vs-LB
     and returns a \texttt{BnPIncumbent} carrying \texttt{cost},
     \texttt{sol} and the \texttt{\{ub,lb,time\}\_history} traces used by
     \texttt{plot\_bnp\_progress}. The Lagrangian bound was implemented in
-    Exercise~C (Trick~7). Dive at root, RMH every \texttt{--rmh-every}
-    nodes; \texttt{--gap} stops within $\delta\%$;
-    \texttt{--no-depth-first} switches to pure best-first.
+    Exercise~C (Trick~7). Dive at root, RMH every \texttt{{-}{-}rmh-every}
+    nodes; \texttt{{-}{-}gap} stops within $\delta\%$;
+    \texttt{{-}{-}no-depth-first} switches to pure best-first.
   \end{exbox}
 \end{frame}
 
 \begin{frame}[fragile]{Exercise E -- expected output}
-\begin{lstlisting}[style=sh]
-(.venv) $ python -m vrp.tests.exE_bnp --instance R101_25.txt
-[bnp]   open=1  inc=622.1  best_lb=617.1  gap=0.8%
-[node 1]  branch on (4,12)  bar_y=0.61
-[node 2]  forbid (4,12)  LP=621.2 LB=618.3 depth=1
-[node 3]  force  (4,12)  LP=620.4 LB=620.4 (integer)  inc=620.4
-[bnp]   open=1  inc=620.4  best_lb=618.3
-[node 4]  forbid further; LB=620.4  prune
-[bnp]   DONE in 5 nodes,  optimum=620.4
+\begin{lstlisting}[style=sh,basicstyle=\ttfamily\scriptsize]
+(.venv) $ python -m vrp.tests.exE_bnp
+[bnp] B&P start: root LB=1636.39, 1370 columns in pool, depth_first=True ...
+[bnp] B&P done in 12 nodes, optimum=1642.88 (20 routes), global LB=1642.88 ...
+[ex.E] done in 5.8s, optimum=1642.88
+[ex.E] solution (20 routes):
+[ex.E]   cost=86.77  [0, 92, 42, 15, 87, 57, 97, 101]
+[ex.E]   cost=50.00  [0, 31, 88, 7, 101]  ...
+
+
 \end{lstlisting}
+  \begin{tipbox}[1 node = proven optimal without branching]
+    R101\_25 has an integer root LP -- the B\&P terminates immediately.
+    On larger or more constrained instances (\texttt{RC101.txt}, or
+    \texttt{C101\_25.txt}) the tree has many nodes and branching is
+    essential. Use \texttt{compare\_bnp} to observe the search progress.
+  \end{tipbox}
 \end{frame}
 
 % =====================================================================
@@ -504,7 +520,7 @@ python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
 # B&P -- depth-first vs best-first
 python -m vrp.tests.compare_bnp --instance R101.txt --search both
 \end{lstlisting}
-  Add \texttt{--save figure.png} to write the figure to disk instead of
+  Add \texttt{{-}{-}save figure.png} to write the figure to disk instead of
   displaying it.
 \end{frame}
 
@@ -550,8 +566,8 @@ python -m vrp.tests.compare_bnp --instance R101.txt --search both
   \end{tabular}
   \medskip
   \begin{tipbox}[Get unstuck fast]
-    Each saved \texttt{iter\_*.txt} in \texttt{instances/duals/R101/} is a
-    one-iteration regression check. Diff your duals against them.
+    The saved \texttt{iter\_0.txt} in \texttt{instances/duals/R101\_25/} is a
+    one-iteration regression check. Diff your duals against it.
   \end{tipbox}
 \end{frame}
 

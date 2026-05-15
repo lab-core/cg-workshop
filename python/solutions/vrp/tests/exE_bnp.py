@@ -96,7 +96,7 @@ def run_bnp(inst: Instance, nb_cols: int = 50, alpha: float = 0.0,
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--instance", default="toy.txt")
+    ap.add_argument("--instance", default="R101.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
     ap.add_argument("--nb-cols", type=int, default=50)

@@ -77,7 +77,7 @@ python/
 ├── requirements.txt
 ├── theory.pdf, lab.pdf
 ├── instances/               <-- toy.txt + a handful of Solomon files
-│   └── duals/R101/          <-- saved dual prices, used by checks
+│   └── duals/               <-- saved LP dual prices for exB_pricing
 ├── solutions/               <-- reference solutions (peek only after trying!)
 └── vrp/
     ├── instance.py          <-- Customer / Instance — read-only
@@ -157,7 +157,7 @@ Each check script prints expected vs computed values then a final
 
 ```bash
 python -m vrp.tests.exA_master --instance toy.txt
-python -m vrp.tests.exB_pricing --instance R101.txt --iter 0
+python -m vrp.tests.exB_pricing --instance R101_25.txt
 python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
 python -m vrp.tests.exD_diving --instance R101_25.txt
 python -m vrp.tests.exE_bnp --instance R101_25.txt

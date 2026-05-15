@@ -14,7 +14,7 @@ source .venv/bin/activate
 
 PYTHONPATH=solutions python -m vrp.smoke_test
 PYTHONPATH=solutions python -m vrp.tests.exA_master
-PYTHONPATH=solutions python -m vrp.tests.exB_pricing --instance R101.txt --iter 0
+PYTHONPATH=solutions python -m vrp.tests.exB_pricing --instance R101_25.txt
 PYTHONPATH=solutions python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
 PYTHONPATH=solutions python -m vrp.tests.exD_diving --instance R101_25.txt
 PYTHONPATH=solutions python -m vrp.tests.exE_bnp --instance R101_25.txt

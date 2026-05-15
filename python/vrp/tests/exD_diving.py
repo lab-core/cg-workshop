@@ -19,7 +19,7 @@ _log = get_logger("ex.D")
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--instance", default="toy.txt")
+    ap.add_argument("--instance", default="R101_25.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
     ap.add_argument("--nb-cols", type=int, default=50)

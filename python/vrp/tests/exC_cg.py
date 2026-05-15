@@ -17,11 +17,11 @@ _log = get_logger("ex.C")
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--instance", default="toy.txt")
+    ap.add_argument("--instance", default="R101_25.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
     ap.add_argument("--nb-cols", type=int, default=50, help="multi-column cap")
-    ap.add_argument("--nb-vehicles", type=int, default=None,
+    ap.add_argument("--nb-vehicles", type=int, default=25,
                     help="override vehicle count (default: use instance value)")
     ap.add_argument("--alpha", "-a", type=float, default=0.0,
                     help="Wentges smoothing parameter (0 disables)")
