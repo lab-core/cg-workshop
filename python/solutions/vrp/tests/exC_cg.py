@@ -20,7 +20,9 @@ def main() -> int:
     ap.add_argument("--instance", default="toy.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
-    ap.add_argument("--K", type=int, default=50, help="multi-column cap")
+    ap.add_argument("--nb-cols", type=int, default=50, help="multi-column cap")
+    ap.add_argument("--nb-vehicles", type=int, default=None,
+                    help="override vehicle count (default: use instance value)")
     ap.add_argument("--alpha", "-a", type=float, default=0.0,
                     help="Wentges smoothing parameter (0 disables)")
     ap.add_argument("--gap", type=float, default=0.0,
@@ -31,9 +33,9 @@ def main() -> int:
     inst = InstanceReader(find_instance(args.instance)).read()
     _log.info("instance: %s (%d customers)",
               args.instance, len(inst.get_customers_by_id()) - 1)
-    _log.info("K_MAX=%d, alpha=%.2f", args.K, args.alpha)
+    _log.info("nb_cols=%d, alpha=%.2f", args.nb_cols, args.alpha)
 
-    vrp = VRP(inst, K_MAX=args.K, alpha=args.alpha)
+    vrp = VRP(inst, nb_cols=args.nb_cols, alpha=args.alpha, K=args.nb_vehicles)
     t0 = time.time()
     master, sol = vrp.solve_cg(gap_pct=args.gap)
     dt = time.time() - t0

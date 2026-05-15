@@ -1943,7 +1943,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
 \begin{frame}[fragile]{Comparison runners}
 \begin{lstlisting}[language=bash]
 # CG -- batch sizes
-python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+python -m vrp.tests.compare_cg --instance RC101.txt --nb-cols-list 1 5 20 50
 
 # CG -- Wentges smoothing
 python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
@@ -1955,7 +1955,7 @@ python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
 python -m vrp.tests.compare_bnp --instance R101.txt --search both
 
 # B&P -- pricing batch sizes
-python -m vrp.tests.compare_bnp --instance R101.txt --Ks 5 20 50
+python -m vrp.tests.compare_bnp --instance R101.txt --nb-cols-list 5 20 50
 \end{lstlisting}
   Add \texttt{--save figure.png} to write the figure to disk instead of
   displaying it. Every CG / B\&P run inside the comparison uses the

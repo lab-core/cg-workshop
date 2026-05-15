@@ -36,15 +36,17 @@ def main() -> int:
     ap.add_argument("--alphas", type=float, nargs="+", default=None,
                     metavar="ALPHA",
                     help="Wentges alpha values to compare (gap fixed at 0)")
-    ap.add_argument("--Ks", type=int, nargs="+", default=None,
-                    metavar="K",
+    ap.add_argument("--nb-cols-list", type=int, nargs="+", default=None,
+                    metavar="N",
                     help="max-columns-per-iteration values to compare (gap fixed at 0)")
     ap.add_argument("--search", choices=["depth-first", "best-first", "both"],
                     default=None,
                     help="compare depth-first vs best-first node selection")
-    ap.add_argument("--K", type=int, default=50,
+    ap.add_argument("--nb-cols", type=int, default=50,
                     help="max columns added per pricing call, used when not "
-                         "comparing Ks (default: 50)")
+                         "comparing nb-cols-list (default: 50)")
+    ap.add_argument("--nb-vehicles", type=int, default=None,
+                    help="override vehicle count (default: use instance value)")
     ap.add_argument("--save", default=None, metavar="PATH",
                     help="save the figure to this file instead of displaying it")
     ap.add_argument("--verbose", "-v", action="store_true",
@@ -52,26 +54,26 @@ def main() -> int:
     args = ap.parse_args()
     configure_logging(verbose=args.verbose)
 
-    # Build the list of (label, K_MAX, gap, alpha, depth_first) configurations.
+    # Build the list of (label, nb_cols, gap, alpha, depth_first) configurations.
     configs: list[tuple[str, int, float, float, bool]] = []
-    if args.Ks is not None:
-        for k in args.Ks:
-            configs.append((f"K = {k}", k, 0.0, 0.0, True))
+    if args.nb_cols_list is not None:
+        for k in args.nb_cols_list:
+            configs.append((f"nb_cols = {k}", k, 0.0, 0.0, True))
     elif args.search is not None:
         pairs = [("depth-first", True), ("best-first", False)]
         if args.search != "both":
             pairs = [(args.search, args.search == "depth-first")]
         for lbl, df in pairs:
-            configs.append((lbl, args.K, 0.0, 0.0, df))
+            configs.append((lbl, args.nb_cols, 0.0, 0.0, df))
     elif args.gaps is not None:
         for g in args.gaps:
             label = "exact" if g == 0.0 else f"gap ≤ {g}%"
-            configs.append((label, args.K, g, 0.0, True))
+            configs.append((label, args.nb_cols, g, 0.0, True))
     elif args.alphas is not None:
         for a in args.alphas:
-            configs.append((f"α = {a}", args.K, 0.0, a, True))
+            configs.append((f"α = {a}", args.nb_cols, 0.0, a, True))
     else:
-        configs = [("exact", args.K, 0.0, 0.0, True)]
+        configs = [("exact", args.nb_cols, 0.0, 0.0, True)]
 
     inst = InstanceReader(find_instance(args.instance)).read()
     n_cust = len(inst.get_customers_by_id()) - 1
@@ -82,14 +84,14 @@ def main() -> int:
     for label, k_max, gap, alpha, df in configs:
         print(f"  {label:15s} ...", end=" ", flush=True)
         t0 = time.perf_counter()
-        inc = run_bnp(inst, K_MAX=k_max, alpha=alpha, gap_pct=gap,
-                      depth_first=df)
+        inc = run_bnp(inst, nb_cols=k_max, alpha=alpha, gap_pct=gap,
+                      depth_first=df, K=args.nb_vehicles)
         elapsed = time.perf_counter() - t0
         n_nodes = len(inc.ub_history)
         print(f"nodes={n_nodes:4d}  cost={inc.cost:.2f}  time={elapsed:.1f}s")
         runs.append((label, inc))
 
-    k_desc = f"K_MAX={args.K}" if args.Ks is None else f"Ks={args.Ks}"
+    k_desc = f"nb_cols={args.nb_cols}" if args.nb_cols_list is None else f"nb_cols_list={args.nb_cols_list}"
     print()
     title = (f"B&P progress — {args.instance}  "
              f"({n_cust} customers, {k_desc})")

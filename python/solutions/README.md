@@ -15,7 +15,7 @@ source .venv/bin/activate
 PYTHONPATH=solutions python -m vrp.smoke_test
 PYTHONPATH=solutions python -m vrp.tests.exA_master
 PYTHONPATH=solutions python -m vrp.tests.exB_pricing --instance R101.txt --iter 0
-PYTHONPATH=solutions python -m vrp.tests.exC_cg --instance R101_25.txt --K 50
+PYTHONPATH=solutions python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
 PYTHONPATH=solutions python -m vrp.tests.exD_diving --instance R101_25.txt
 PYTHONPATH=solutions python -m vrp.tests.exE_bnp --instance R101_25.txt
 ```
@@ -45,15 +45,15 @@ source .venv/bin/activate
 
 # CG — compare pricing batch sizes
 PYTHONPATH=solutions python -m vrp.tests.compare_cg \
-    --instance RC101.txt --Ks 1 5 20 50
+    --instance RC101.txt --nb-cols-list 1 5 20 50
 
 # CG — compare Wentges smoothing
 PYTHONPATH=solutions python -m vrp.tests.compare_cg \
     --instance RC101.txt --alphas 0 0.2 0.5
 
-# B&P — compare K values
+# B&P — compare pricing batch sizes
 PYTHONPATH=solutions python -m vrp.tests.compare_bnp \
-    --instance RC101.txt --Ks 5 20 50
+    --instance RC101.txt --nb-cols-list 5 20 50
 
 # B&P — compare gap thresholds
 PYTHONPATH=solutions python -m vrp.tests.compare_bnp \
@@ -72,10 +72,11 @@ figure to disk instead of displaying it.
 
 | Flag | Default | Effect |
 |------|---------|--------|
-| `--alphas A …` | `0 0.1 0.3 0.5` | compare α values; K fixed at `--K` |
-| `--Ks K …` | — | compare batch sizes; α fixed at `--alpha` |
-| `--K` | `50` | K used when `--alphas` is active |
-| `--alpha` | `0.0` | α used when `--Ks` is active |
+| `--alphas A …` | `0 0.1 0.3 0.5` | compare α values; nb-cols fixed at `--nb-cols` |
+| `--nb-cols-list N …` | — | compare batch sizes; α fixed at `--alpha` |
+| `--nb-cols` | `50` | batch size used when `--alphas` is active |
+| `--alpha` | `0.0` | α used when `--nb-cols-list` is active |
+| `--nb-vehicles` | instance value | override vehicle count K |
 
 ### `compare_bnp` flags
 
@@ -83,6 +84,7 @@ figure to disk instead of displaying it.
 |------|---------|--------|
 | `--gaps G …` | — | compare gap stop thresholds |
 | `--alphas A …` | — | compare Wentges α values |
-| `--Ks K …` | — | compare pricing batch sizes |
+| `--nb-cols-list N …` | — | compare pricing batch sizes |
 | `--search` | — | `depth-first`, `best-first`, or `both` |
-| `--K` | `50` | K used for all modes except `--Ks` |
+| `--nb-cols` | `50` | batch size used for all modes except `--nb-cols-list` |
+| `--nb-vehicles` | instance value | override vehicle count K |

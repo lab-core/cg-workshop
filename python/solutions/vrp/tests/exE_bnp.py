@@ -23,18 +23,20 @@ from vrp.vrp import VRP
 _log = get_logger("ex.E")
 
 
-def make_bnp_callbacks(inst: Instance, K_MAX: int, alpha: float = 0.0):
+def make_bnp_callbacks(inst: Instance, nb_cols: int, alpha: float = 0.0,
+                       K: int | None = None):
     """Return (run_cg_at_node, run_dive, run_rmh) callbacks for branch_and_price.
 
     Parameters
     ----------
-    inst    the parsed VRPTW instance.
-    K_MAX   max columns added per pricing call.
-    alpha   Wentges smoothing parameter (0 = disabled).
+    inst     the parsed VRPTW instance.
+    nb_cols  max columns added per pricing call.
+    alpha    Wentges smoothing parameter (0 = disabled).
+    K        vehicle count override; defaults to inst.get_nb_vehicles().
     """
     def run_cg_at_node(node: BnPNode, incumbent: BnPIncumbent) -> None:
         v = VRP(inst, forbidden_arcs=node.forbidden,
-                forced_arcs=node.forced, K_MAX=K_MAX, alpha=alpha)
+                forced_arcs=node.forced, nb_cols=nb_cols, alpha=alpha, K=K)
         v.paths = list(node.pool)
         if v.paths:
             v._next_path_id = max(p.id for p in v.paths) + 1
@@ -66,11 +68,11 @@ def make_bnp_callbacks(inst: Instance, K_MAX: int, alpha: float = 0.0):
     return run_cg_at_node, run_dive, run_rmh
 
 
-def run_bnp(inst: Instance, K_MAX: int = 50, alpha: float = 0.0,
+def run_bnp(inst: Instance, nb_cols: int = 50, alpha: float = 0.0,
             rmh_every: int = 10, gap_pct: float = 0.0,
-            depth_first: bool = True) -> BnPIncumbent:
+            depth_first: bool = True, K: int | None = None) -> BnPIncumbent:
     """Run a full root-CG + B&P on *inst* and return the BnPIncumbent."""
-    vrp_root = VRP(inst, K_MAX=K_MAX, alpha=alpha)
+    vrp_root = VRP(inst, nb_cols=nb_cols, alpha=alpha, K=K)
     master, lp_sol = vrp_root.solve_cg()
 
     root = BnPNode(
@@ -82,7 +84,7 @@ def run_bnp(inst: Instance, K_MAX: int = 50, alpha: float = 0.0,
         master=master,
     )
 
-    run_cg_at_node, run_dive, run_rmh = make_bnp_callbacks(inst, K_MAX, alpha)
+    run_cg_at_node, run_dive, run_rmh = make_bnp_callbacks(inst, nb_cols, alpha, K=K)
 
     return branch_and_price(
         root, run_cg_at_node, run_dive, run_rmh,
@@ -97,7 +99,9 @@ def main() -> int:
     ap.add_argument("--instance", default="toy.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
-    ap.add_argument("--K", type=int, default=50)
+    ap.add_argument("--nb-cols", type=int, default=50)
+    ap.add_argument("--nb-vehicles", type=int, default=None,
+                    help="override vehicle count (default: use instance value)")
     ap.add_argument("--rmh-every", type=int, default=10,
                     help="run RMH at every B&P node whose id is a multiple "
                          "of this (default 10)")
@@ -113,9 +117,10 @@ def main() -> int:
 
     t0 = time.time()
     incumbent = run_bnp(
-        inst, K_MAX=args.K,
+        inst, nb_cols=args.nb_cols,
         rmh_every=args.rmh_every, gap_pct=args.gap,
         depth_first=not args.no_depth_first,
+        K=args.nb_vehicles,
     )
     _log.info("done in %.1fs, optimum=%.2f", time.time() - t0, incumbent.cost)
     if incumbent.sol:

@@ -289,6 +289,13 @@ def branch_and_price(
         else:
             open_nodes.append(up)
 
+    # If the tree was fully explored, B&P has proven optimality: LB = UB.
+    if not open_nodes and math.isfinite(incumbent.cost):
+        incumbent.ub_history.append(incumbent.cost)
+        incumbent.lb_history.append(incumbent.cost)
+        incumbent.time_history.append(time.perf_counter() - t_start)
+        global_lb = incumbent.cost
+
     n_routes = len(incumbent.sol) if incumbent.sol is not None else "?"
     _log.info("B&P done in %d nodes, optimum=%.2f (%s routes), global LB=%.2f",
               nodes_processed, incumbent.cost, n_routes, global_lb)

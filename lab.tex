@@ -378,7 +378,7 @@ python/
             $\text{LB}\!=\!\sum_i\pi_i + K\sigma + K\!\cdot\!\min(0,\redcost^*)$
             (Trick~7 in the theory deck).
     \end{itemize}
-    Try \texttt{--K 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
+    Try \texttt{--nb-cols-list 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
     (or \texttt{compare\_cg} below) to feel each knob.
   \end{exbox}
   \begin{tipbox}[Don't rebuild the master or the graph]
@@ -390,7 +390,7 @@ python/
 
 \begin{frame}[fragile]{Exercise C -- expected output (R101\_25)}
 \begin{lstlisting}[style=sh]
-(.venv) $ python -m vrp.tests.exC_cg --instance R101_25.txt --K 50
+(.venv) $ python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
 iter   ncols   LP        gap-vs-LB
    0      25   1230.4    --
    1      75   948.1     --
@@ -398,7 +398,7 @@ iter   ncols   LP        gap-vs-LB
    3     175   823.7     --
    4     208   617.1     <-- converged
 \end{lstlisting}
-  Try $K\!\in\!\{1,5,20,100\}$ and observe the iteration count drop.
+  Try \texttt{--nb-cols} $\in\!\{1,5,20,100\}$ and observe the iteration count drop.
   Wentges $\alpha\!=\!0.5$ usually halves it again.
   The Lagrangian bound is computed in Exercise E.
 \end{frame}
@@ -496,7 +496,7 @@ iter   ncols   LP        gap-vs-LB
 
 \begin{lstlisting}[style=sh]
 # CG -- compare pricing batch sizes
-python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+python -m vrp.tests.compare_cg --instance RC101.txt --nb-cols-list 1 5 20 50
 # CG -- compare Wentges smoothing
 python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
 # B&P -- compare gap thresholds

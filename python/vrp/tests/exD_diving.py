@@ -22,12 +22,14 @@ def main() -> int:
     ap.add_argument("--instance", default="toy.txt")
     ap.add_argument("--verbose", "-v", action="store_true",
                     help="enable DEBUG logs")
-    ap.add_argument("--K", type=int, default=50)
+    ap.add_argument("--nb-cols", type=int, default=50)
+    ap.add_argument("--nb-vehicles", type=int, default=None,
+                    help="override vehicle count (default: use instance value)")
     args = ap.parse_args()
     configure_logging(verbose=args.verbose)
 
     inst = InstanceReader(find_instance(args.instance)).read()
-    vrp = VRP(inst, K_MAX=args.K)
+    vrp = VRP(inst, nb_cols=args.nb_cols, K=args.nb_vehicles)
 
     _log.info("instance: %s", args.instance)
     t0 = time.time()

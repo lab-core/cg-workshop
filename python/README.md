@@ -158,7 +158,7 @@ Each check script prints expected vs computed values then a final
 ```bash
 python -m vrp.tests.exA_master --instance toy.txt
 python -m vrp.tests.exB_pricing --instance R101.txt --iter 0
-python -m vrp.tests.exC_cg --instance R101_25.txt --K 50
+python -m vrp.tests.exC_cg --instance R101_25.txt --nb-cols 50
 python -m vrp.tests.exD_diving --instance R101_25.txt
 python -m vrp.tests.exE_bnp --instance R101_25.txt
 ```
@@ -177,24 +177,28 @@ and plot convergence side-by-side. Each produces a figure with:
 ### `compare_cg` — column generation
 
 ```bash
-# compare Wentges smoothing values (fixed K=50)
+# compare Wentges smoothing values (fixed nb-cols=50)
 python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
 
 # compare pricing batch sizes (fixed alpha=0)
-python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
+python -m vrp.tests.compare_cg --instance RC101.txt --nb-cols-list 1 5 20 50
 
-# compare K values with smoothing, save figure
-python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50 --alpha 0.3 --save cg.png
+# compare batch sizes with smoothing, save figure
+python -m vrp.tests.compare_cg --instance RC101.txt --nb-cols-list 1 5 20 50 --alpha 0.3 --save cg.png
+
+# restrict to fewer vehicles than the instance default
+python -m vrp.tests.compare_cg --instance R101.txt --nb-vehicles 10 --alphas 0 0.3
 ```
 
 | Flag | Default | Effect |
 |------|---------|--------|
-| `--alphas A …` | `0 0.1 0.3 0.5` | compare Wentges α values; K fixed at `--K` |
-| `--Ks K …` | — | compare pricing batch sizes; α fixed at `--alpha` |
-| `--K` | `50` | K used when `--alphas` is active |
-| `--alpha` | `0.0` | α used when `--Ks` is active |
+| `--alphas A …` | `0 0.1 0.3 0.5` | compare Wentges α values; nb-cols fixed at `--nb-cols` |
+| `--nb-cols-list N …` | — | compare pricing batch sizes; α fixed at `--alpha` |
+| `--nb-cols` | `50` | batch size used when `--alphas` is active |
+| `--alpha` | `0.0` | α used when `--nb-cols-list` is active |
+| `--nb-vehicles` | instance value | override vehicle count K |
 
-`--alphas` and `--Ks` are mutually exclusive.
+`--alphas` and `--nb-cols-list` are mutually exclusive.
 
 ### `compare_bnp` — branch-and-price
 
@@ -203,7 +207,7 @@ python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50 --alpha 0.3 -
 python -m vrp.tests.compare_bnp --instance RC101.txt --gaps 0 2 5
 
 # compare pricing batch sizes
-python -m vrp.tests.compare_bnp --instance RC101.txt --Ks 5 20 50
+python -m vrp.tests.compare_bnp --instance RC101.txt --nb-cols-list 5 20 50
 
 # compare Wentges smoothing values
 python -m vrp.tests.compare_bnp --instance RC101.txt --alphas 0 0.3 0.5
@@ -211,19 +215,20 @@ python -m vrp.tests.compare_bnp --instance RC101.txt --alphas 0 0.3 0.5
 # compare node-selection strategies
 python -m vrp.tests.compare_bnp --instance RC101.txt --search both
 
-# save figure
-python -m vrp.tests.compare_bnp --instance RC101.txt --Ks 5 50 --save bnp.png
+# restrict to fewer vehicles, save figure
+python -m vrp.tests.compare_bnp --instance R101.txt --nb-vehicles 10 --save bnp.png
 ```
 
 | Flag | Default | Effect |
 |------|---------|--------|
-| `--gaps G …` | — | compare optimality-gap stop thresholds; K from `--K` |
-| `--alphas A …` | — | compare Wentges α values; K from `--K` |
-| `--Ks K …` | — | compare pricing batch sizes; gap=0, α=0 |
+| `--gaps G …` | — | compare optimality-gap stop thresholds |
+| `--alphas A …` | — | compare Wentges α values |
+| `--nb-cols-list N …` | — | compare pricing batch sizes; gap=0, α=0 |
 | `--search` | — | `depth-first`, `best-first`, or `both` |
-| `--K` | `50` | K used for all modes except `--Ks` |
+| `--nb-cols` | `50` | batch size used for all modes except `--nb-cols-list` |
+| `--nb-vehicles` | instance value | override vehicle count K |
 
-If none of `--gaps`, `--alphas`, `--Ks`, `--search` is given, a single
+If none of `--gaps`, `--alphas`, `--nb-cols-list`, `--search` is given, a single
 exact run is plotted.
 
 ---

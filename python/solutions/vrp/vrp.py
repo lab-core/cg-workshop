@@ -37,17 +37,18 @@ class VRP:
     def __init__(self, instance: Instance,
                  forbidden_arcs: Optional[set[tuple[int, int]]] = None,
                  forced_arcs: Optional[set[tuple[int, int]]] = None,
-                 K_MAX: int = 50,
-                 alpha: float = 0.0):
+                 nb_cols: int = 50,
+                 alpha: float = 0.0,
+                 K: Optional[int] = None):
         self.instance = instance
         self.forbidden_arcs = forbidden_arcs or set()
         self.forced_arcs = forced_arcs or set()
-        self.K_MAX = K_MAX
+        self.nb_cols = nb_cols
         self.alpha = alpha
+        self.K = K if K is not None else instance.get_nb_vehicles()
         self.paths: list[Path] = []
         self._next_path_id = 0
         self._prev_dual_by_id: dict[int, float] = {}
-        self._path_signatures: set[tuple] = set()
         self.stats = CGStats()
         self._pricing_graph: Optional[PricingGraph] = None
 
@@ -73,7 +74,6 @@ class VRP:
     def _new_path(self, cost: float, visited_nodes: List[int]) -> Path:
         p = Path(self._next_path_id, cost, visited_nodes)
         self._next_path_id += 1
-        self._path_signatures.add(tuple(p.visited_nodes))
         return p
 
     # ----------------------------------------------------------------
@@ -107,13 +107,13 @@ class VRP:
             self.generate_initial_paths()
         master = MasterProblem(
             self.instance.get_demand_customers_id(),
-            self.instance.get_nb_vehicles(),
+            self.K,
         )
         master.construct_model(self.paths)
 
-        _log.info("CG start: %d initial columns, K=%d vehicles, K_MAX=%d, alpha=%.2f, UB=%s",
-                  len(self.paths), self.instance.get_nb_vehicles(),
-                  self.K_MAX, self.alpha,
+        _log.info("CG start: %d initial columns, K=%d vehicles, nb_cols=%d, alpha=%.2f, UB=%s",
+                  len(self.paths), self.K,
+                  self.nb_cols, self.alpha,
                   f"{incumbent_ub:.2f}" if math.isfinite(incumbent_ub) else "inf")
         _log.info("%-4s %-5s %-15s %-15s %-10s %-7s %-10s",
                   "iter", "cols", "LP", "LB", "UB", "gap%", "min_rc")
@@ -127,29 +127,27 @@ class VRP:
             sol = master.solve(relax=True)
             self.stats.master_time_s += time.time() - t0
 
-            duals = dict(sol.dual_by_var_id)
-            duals[self.instance.get_depot_customer().id] = sol.sigma
-
             # === EX-C.2 -- Wentges smoothing (optional) =========
             # TODO: if self.alpha > 0 and self._prev_dual_by_id is
             # non-empty, replace duals[i] by
             #   alpha * prev[i] + (1-alpha) * duals[i].
             # Save the (smoothed) duals into self._prev_dual_by_id.
             # ====================================================
+            duals = dict(sol.dual_by_var_id)
             if self.alpha > 0 and self._prev_dual_by_id:
                 for k, v in duals.items():
                     pv = self._prev_dual_by_id.get(k, v)
                     duals[k] = self.alpha * pv + (1 - self.alpha) * v
             self._prev_dual_by_id = dict(duals)
-            duals[self.instance.get_depot_customer().id] = sol.sigma
 
+            duals[self.instance.get_depot_customer().id] = sol.sigma  # Very important
             t0 = time.time()
             sols = self.solve_subproblem(duals)
             self.stats.pricing_time_s += time.time() - t0
 
             # === EX-C.1 -- multi-column add ====================
             # TODO:
-            #   1. Cap the pricer output at self.K_MAX entries.
+            #   1. Cap the pricer output at self.nb_cols entries.
             #   2. For each rcspp.Solution `s` with s.cost < -EPSILON,
             #      build a Path with cost = real distance of the route
             #      (use _route_cost(s)) and visited_nodes = s.path_node_ids,
@@ -157,7 +155,7 @@ class VRP:
             #      self.paths.  Update self.stats.nb_columns_added.
             #   3. min_redcost = min(s.cost for s in sols, default=+inf)
             # ====================================================
-            kept = [s for s in sols[: self.K_MAX] if s.cost < -self.EPSILON]
+            kept = [s for s in sols[: self.nb_cols] if s.cost < -self.EPSILON]
             for s in kept:
                 p = self._new_path(self._route_cost(s), s.path_node_ids)
                 self.paths.append(p)
@@ -168,11 +166,12 @@ class VRP:
 
             # === EX-C.4 -- Lagrangian bound + log ==============
             # TODO: compute
-            #   LB = lagrangian_bound(duals, sol.sigma, sols, K)
-            # where K = self.instance.get_nb_vehicles().
+            #   LB = lagrangian_bound(sol.dual_by_var_id, sol.sigma, sols, K)
+            # where K = self.K.
+            # Note: pass sol.dual_by_var_id (customer duals only), NOT duals
+            # (which also has duals[depot.id]=sigma and would double-count it).
             # ====================================================
-            LB = lagrangian_bound(duals, sol.sigma, sols,
-                                  self.instance.get_nb_vehicles())
+            LB = lagrangian_bound(sol.dual_by_var_id, sol.sigma, sols, self.K)
 
             # === EX-C.3 -- Log ==================================
             # TODO: ensure printing the right values for:
