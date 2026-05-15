@@ -1,14 +1,4 @@
-"""Pricing problem for the VRPTW master.
-
-The pricer is a Resource-Constrained Shortest Path (RCSPP) on a graph
-with three resources: cost, time, demand.  Arc cost = d_uv - pi_v - sigma_arc
-where sigma_arc absorbs the vehicle-count dual on depot-leaving arcs.
-
-Holes:
-    EX-B.1  --  build the pricing graph (resources, nodes, arcs).
-    EX-B.2  --  fill in arc costs and resource increments per arc.
-    EX-E.4  --  remove forbidden arcs (B&P down branch).
-"""
+"""Reference implementation of the pricing graph + RCSPP wiring."""
 
 from __future__ import annotations
 
@@ -39,8 +29,6 @@ def euclidean(a: Customer, b: Customer) -> float:
 
 
 class PricingGraph:
-    """Builds the rcspp.ResourceGraph for one set of duals."""
-
     def __init__(self, instance: Instance,
                  forbidden_arcs: Optional[set[tuple[int, int]]] = None,
                  forced_arcs: Optional[set[tuple[int, int]]] = None):
@@ -57,9 +45,6 @@ class PricingGraph:
         self.graph = ResourceGraph()
         self._register_resources()
 
-    # ----------------------------------------------------------------
-    #  Resources: cost, time, demand
-    # ----------------------------------------------------------------
     def _init_time_windows(self) -> None:
         for cid, c in self.instance.get_customers_by_id().items():
             self._min_tw[cid] = c.ready_time
@@ -69,21 +54,21 @@ class PricingGraph:
         self._max_tw[sink_id] = math.inf
 
     def _register_resources(self) -> None:
-        # Resource 0: COST (cumulative reduced cost).
+        # Resource 0: COST
         self.graph.add_real_resource(
             AdditionExtensionFunction(),
             TrivialFeasibilityFunction(),
             ValueCostFunction(),
             ValueDominanceFunction(),
         )
-        # Resource 1: TIME (with time windows).
+        # Resource 1: TIME (with time windows)
         self.graph.add_real_resource(
             TimeWindowExtensionFunction(self._min_tw),
             TimeWindowFeasibilityFunction(self._max_tw),
             ValueCostFunction(),
             ValueDominanceFunction(),
         )
-        # Resource 2: DEMAND / load.
+        # Resource 2: DEMAND
         self.graph.add_real_resource(
             AdditionExtensionFunction(),
             MinMaxFeasibilityFunction(0.0, self.instance.get_capacity()),
@@ -91,9 +76,9 @@ class PricingGraph:
             ValueDominanceFunction(),
         )
 
-    # ----------------------------------------------------------------
-    #  EX-B.1 -- nodes and arcs
-    # ----------------------------------------------------------------
+    # ------------------------------------------------------------
+    #  EX-B.1 -- nodes + arcs
+    # ------------------------------------------------------------
     def build(self) -> None:
         """Add nodes + arcs to the graph with base costs and dual rows.
 
@@ -115,16 +100,36 @@ class PricingGraph:
         #      Skip the self-loop, and add an arc to the sink for every
         #      customer (sink_customer = depot, but node id = sink_id).
         # =====================================================
-        raise NotImplementedError("EX-B.1: build pricing graph")
+        depot_id = self.instance.get_depot_customer().id
+        customers_by_id = self.instance.get_customers_by_id()
+        sink_id = len(customers_by_id)
+
+        # add nodes
+        for cid, c in customers_by_id.items():
+            self.graph.add_node(cid, c.depot, False)
+        self.graph.add_node(sink_id, False, True)
+
+        # add arcs
+        arc_id = 0
+        for o_id, o in customers_by_id.items():
+            for d_id, d in customers_by_id.items():
+                if o_id == d_id:
+                    continue
+                self._add_arc(o_id, d_id, o, d, arc_id)
+                arc_id += 1
+            # arc to the sink (depot duplicate)
+            sink_customer = customers_by_id[depot_id]
+            self._add_arc(o_id, sink_id, o, sink_customer, arc_id)
+            arc_id += 1
 
     def update_costs(self, dual_by_id: dict[int, float]) -> None:
         """Recompute arc reduced costs from dual prices without rebuilding the graph."""
         self.graph.update_reduced_costs(dual_by_id)
 
-    # ----------------------------------------------------------------
+    # ------------------------------------------------------------
     #  EX-B.2 -- arc cost and resource increments
     #  EX-E.4 -- skip forbidden arcs (B&P down branches)
-    # ----------------------------------------------------------------
+    # ------------------------------------------------------------
     def _add_arc(self, origin_id: int, dest_id: int,
                  origin: Customer, dest: Customer,
                  arc_id: int) -> None:
@@ -171,13 +176,29 @@ class PricingGraph:
         #       origin_id, dest_id, arc_id, math.inf,
         #   )
         # =====================================================
-        raise NotImplementedError("EX-B.2: arc cost & resource increments")
+        distance = euclidean(origin, dest)
+        travel_time = origin.service_time + distance
+        demand = dest.demand
 
-    # ----------------------------------------------------------------
-    #  Solving
-    # ----------------------------------------------------------------
+        # depot→sink arc is inert (prevents empty routes): infinite base cost, no dual row.
+        if origin.depot and dest.depot:
+            self.graph.add_arc(
+                (math.inf, travel_time, demand),
+                origin_id, dest_id, arc_id, math.inf,
+            )
+            return
+
+        # Convention: reduced_cost = distance - pi_origin  (dual paid on departure).
+        # arc.cost = distance (base), Row encodes the -1 * pi_origin contribution.
+        # update_reduced_costs will compute: rc = distance - 1.0 * dual[origin_id].
+        self.graph.add_arc(
+            (distance, travel_time, demand),
+            origin_id, dest_id, arc_id, distance,
+            [Row(origin_id, 1.0)],
+        )
+
+    # ------------------------------------------------------------
     def solve(self):
-        """Run label-setting; return list[Solution] sorted by reduced cost."""
         sols = self.graph.solve()
         if sols:
             _log.debug("pricing returned %d sink label(s); best redcost=%.2f",

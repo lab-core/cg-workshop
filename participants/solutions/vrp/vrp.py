@@ -1,15 +1,4 @@
-"""Top-level CG / B&P driver for the VRPTW lab.
-
-Glues together
-    instance + master + pricer + bound + diving + bnp.
-
-Holes (cross-referenced in lab.pdf):
-    EX-A.3  --  generate_initial_paths (one round-trip per customer).
-    EX-B.3  --  solve_subproblem (build graph once, update_costs + solve each iter).
-    EX-C.1  --  the CG main loop with multi-column return.
-    EX-C.2  --  Wentges dual smoothing (optional, recommended).
-    EX-C.3  --  per-iteration log line including the Lagrangian bound.
-"""
+"""Reference CG / B&P driver."""
 
 from __future__ import annotations
 
@@ -50,15 +39,6 @@ class VRP:
                  forced_arcs: Optional[set[tuple[int, int]]] = None,
                  K_MAX: int = 50,
                  alpha: float = 0.0):
-        """
-        Parameters
-        ----------
-        instance        the parsed VRPTW instance.
-        forbidden_arcs  forbidden arcs (used by B&P down branches).
-        forced_arcs     forced arcs (used by B&P up branches).
-        K_MAX           cap on columns added per CG iteration.
-        alpha           Wentges smoothing parameter; 0 disables smoothing.
-        """
         self.instance = instance
         self.forbidden_arcs = forbidden_arcs or set()
         self.forced_arcs = forced_arcs or set()
@@ -82,7 +62,12 @@ class VRP:
         # 2 * Euclidean distance.  Store the routes in self.paths and
         # return them.
         # =====================================================
-        raise NotImplementedError("EX-A.3: generate initial paths")
+        cust = self.instance.get_customers_by_id()
+        for cid in self.instance.get_demand_customers_id():
+            c = cust[cid]
+            d = euclidean(depot, c)
+            self.paths.append(self._new_path(2.0 * d, [depot.id, cid, depot.id]))
+        return self.paths
 
     def _new_path(self, cost: float, visited_nodes: List[int]) -> Path:
         p = Path(self._next_path_id, cost, visited_nodes)
@@ -93,7 +78,7 @@ class VRP:
     #  EX-B.3 -- pricing call
     # ----------------------------------------------------------------
     def solve_subproblem(self, dual_by_id: dict[int, float]):
-        """Update arc costs from duals and solve the pricing problem."""
+        """Update arc reduced costs from duals and solve the pricing problem."""
         # === EX-B.3 ===========================================
         # TODO:
         #   1. Build the graph once (lazy): if self._pricing_graph is None,
@@ -102,7 +87,13 @@ class VRP:
         #   2. Call self._pricing_graph.update_costs(dual_by_id) to set
         #      the current reduced costs, then return .solve().
         # =====================================================
-        raise NotImplementedError("EX-B.3: pricing graph build & solve")
+        if self._pricing_graph is None:
+            self._pricing_graph = PricingGraph(self.instance,
+                                               forbidden_arcs=self.forbidden_arcs,
+                                               forced_arcs=self.forced_arcs)
+            self._pricing_graph.build()
+        self._pricing_graph.update_costs(dual_by_id)
+        return self._pricing_graph.solve()
 
     # ----------------------------------------------------------------
     #  EX-C.* -- the CG main loop
@@ -110,19 +101,6 @@ class VRP:
     def solve_cg(self, verbose: bool = True,
                  incumbent_ub: float = math.inf,
                  gap_pct: float = 0.0) -> tuple[MasterProblem, MPSolution]:
-        """Run column generation until no negative-reduced-cost column.
-
-        IMPORTANT
-        ---------
-        We build the master ONCE (via ``construct_model``).  Every CG
-        iteration just calls ``master.add_column(...)`` on the new columns
-        and re-solves the LP.  HiGHS warm-starts the simplex from the
-        previous basis -- this is the single biggest performance win.
-        Don't be tempted to rebuild from scratch each iteration.
-
-        ``verbose`` is kept for backwards compatibility, but progress now
-        comes from the ``vrp.cg`` logger (configure via ``vrp.log``).
-        """
         if not self.paths:
             self.generate_initial_paths()
         master = MasterProblem(
@@ -148,6 +126,7 @@ class VRP:
             self.stats.master_time_s += time.time() - t0
 
             duals = dict(sol.dual_by_var_id)
+            duals[self.instance.get_depot_customer().id] = sol.sigma
 
             # === EX-C.2 -- Wentges smoothing (optional) =========
             # TODO: if self.alpha > 0 and self._prev_dual_by_id is
@@ -155,8 +134,13 @@ class VRP:
             #   alpha * prev[i] + (1-alpha) * duals[i].
             # Save the (smoothed) duals into self._prev_dual_by_id.
             # ====================================================
-
+            if self.alpha > 0 and self._prev_dual_by_id:
+                for k, v in duals.items():
+                    pv = self._prev_dual_by_id.get(k, v)
+                    duals[k] = self.alpha * pv + (1 - self.alpha) * v
+            self._prev_dual_by_id = dict(duals)
             duals[self.instance.get_depot_customer().id] = sol.sigma
+
             t0 = time.time()
             sols = self.solve_subproblem(duals)
             self.stats.pricing_time_s += time.time() - t0
@@ -171,14 +155,22 @@ class VRP:
             #      self.paths.  Update self.stats.nb_columns_added.
             #   3. min_redcost = min(s.cost for s in sols, default=+inf)
             # ====================================================
-            raise NotImplementedError("EX-C.1: multi-column add to master")
+            kept = [s for s in sols[: self.K_MAX] if s.cost < -self.EPSILON]
+            for s in kept:
+                p = self._new_path(self._route_cost(s), s.path_node_ids)
+                self.paths.append(p)
+                master.add_column(p)
+            self.stats.nb_columns_added += len(kept)
 
-            # === EX-C.4 -- Lagrangian bound =====================
+            min_redcost = min((s.cost for s in sols), default=math.inf)
+
+            # === EX-C.4 -- Lagrangian bound + log ==============
             # TODO: compute
             #   LB = lagrangian_bound(duals, sol.sigma, sols, K)
             # where K = self.instance.get_nb_vehicles().
             # ====================================================
-            LB = math.inf  # placeholder
+            LB = lagrangian_bound(duals, sol.sigma, sols,
+                                  self.instance.get_nb_vehicles())
 
             # === EX-C.3 -- Log ==================================
             # TODO: ensure printing the right values for:
@@ -191,15 +183,9 @@ class VRP:
             n_cols = len(master.col_by_path_id)
             ub_str = (f"{incumbent_ub:.2f}"
                       if math.isfinite(incumbent_ub) else "inf")
-            if math.isfinite(LB):
-                gap = 100.0 * (sol.cost - LB) / abs(LB) if LB != 0 else math.inf
-                _log.info("%-4d %-5d %-15.2f %-15.2f %-10s %-7.3f %-10.2f",
-                          nb_iter, n_cols, sol.cost, LB, ub_str,
-                          gap, min_redcost)
-            else:
-                _log.info("%-4d %-5d %-15.2f %-15s %-10s %-7s %-10.2f",
-                          nb_iter, n_cols, sol.cost, "-", ub_str, "-",
-                          min_redcost)
+            gap = 100.0 * (sol.cost - LB) / abs(LB) if LB != 0 else math.inf
+            _log.info("%-4d %-5d %-15.2f %-15.2f %-10s %-7.3f %-10.2f",
+                      nb_iter, n_cols, sol.cost, LB, ub_str, gap, min_redcost)
 
             # Allow LB-vs-UB early termination at the root.
             if math.isfinite(incumbent_ub) and LB >= incumbent_ub - self.EPSILON:
@@ -225,12 +211,7 @@ class VRP:
                   self.stats.pricing_time_s, self.stats.master_time_s)
         return master, sol
 
-    # ----------------------------------------------------------------
-    #  Convenience: cost of an rcspp.Solution as a *real* route cost
-    #  (we translate from reduced cost back to distance).
-    # ----------------------------------------------------------------
     def _route_cost(self, solution) -> float:
-        """Recompute distance(route) from the visited node ids."""
         nodes = list(solution.path_node_ids)
         cust = self.instance.get_customers_by_id()
         depot = self.instance.get_depot_customer()

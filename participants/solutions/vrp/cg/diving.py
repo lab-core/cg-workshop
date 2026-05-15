@@ -1,9 +1,4 @@
-"""Plain diving heuristic.
-
-Repeatedly fix the column with the largest fractional value to 1, then
-re-run column generation on the residual master.  At most |customers|
-fixings are needed.
-"""
+"""Reference plain-diving + RMH heuristics."""
 
 from typing import Callable, Optional
 
@@ -28,16 +23,7 @@ def plain_dive(master: MasterProblem,
                ub: float = float("inf"),
                eps: float = 1e-6,
                max_iter: int = 200) -> Optional[MPSolution]:
-    """Iterative diving heuristic.
-
-    Parameters
-    ----------
-    master   the master problem (already CG-converged at root).
-    run_cg   a callable that runs CG on the *current* master and returns
-             the LP solution (used to refresh columns after each fix).
-    eps      tolerance for "fractional" / "integer".
-    max_iter safeguard.
-    """
+    """Iterative diving heuristic."""
     sol = master.solve(relax=True)
     fixed: set[int] = set()
     _log.info("dive start: LP=%.2f", sol.cost)
@@ -54,9 +40,17 @@ def plain_dive(master: MasterProblem,
         # value_by_var_id[pid].  Fix it to 1 in the master via
         # master.fix_column_to_one(pid), and add it to `fixed`.
         # =====================================================
-        raise NotImplementedError("EX-D.2: pick column and fix to 1")
+        best_pid, best_val = None, -1.0
+        for pid, v in sol.value_by_var_id.items():
+            if pid in fixed:
+                continue
+            if eps < v < 1.0 - eps and v > best_val:
+                best_pid, best_val = pid, v
+        if best_pid is None:
+            return sol
 
-
+        master.fix_column_to_one(best_pid)
+        fixed.add(best_pid)
         _log.info("dive fix #%d: column %d (x=%.2f)",
                   len(fixed), best_pid, best_val)
 
@@ -64,7 +58,7 @@ def plain_dive(master: MasterProblem,
         # TODO: re-run CG (call run_cg()) on the now-residual master,
         # then read the new LP solution into `sol`.
         # =====================================================
-        # raise NotImplementedError("EX-D.3: refresh CG after fix")
+        sol = run_cg()
 
         # return a solution only if better than the provided UB
         if sol.cost >= ub:

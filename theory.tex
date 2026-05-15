@@ -9,9 +9,9 @@
 \usetheme{metropolis}
 \usecolortheme{default}
 \metroset{progressbar=frametitle, sectionpage=progressbar, subsectionpage=progressbar}
-% Custom frame numbering "k / N" using the real total
+% Custom frame numbering "k / N" using the real total, with author tag
 \setbeamertemplate{frame numbering}{%
-  \insertframenumber\,/\,\inserttotalframenumber}
+  \insertshortauthor \;|\; \insertframenumber\,/\,\inserttotalframenumber}
 
 % --- Packages --------------------------------------------------------
 \usepackage[utf8]{inputenc}
@@ -104,14 +104,14 @@
 \newtcolorbox{exbox}[1][Hands-on exercise]{
   colback=green!5,colframe=green!50!black,sharp corners,
   boxrule=0.5pt,left=4pt,right=4pt,top=3pt,bottom=3pt,
-  fonttitle=\bfseries\sffamily,title={\textbf{[lab]}\; #1}}
+  fonttitle=\bfseries\sffamily,title={#1}}
 
 % --- Title -----------------------------------------------------------
 \title{Column Generation \& Branch-and-Price}
-\subtitle{Theory deck -- a 4-hour practical workshop\\ \small{Modeling -- Pricing -- Integrality -- Optimality}}
-\author{Workshop notes}
+\subtitle{A 4-hour practical workshop\\ \small{Modeling -- Pricing -- Integrality -- Optimality}}
+\author{Antoine Legrain}
 \institute{Polytechnique Montr\'eal}
-\date{\today}
+\date{May 20, 2026}
 
 \begin{document}
 
@@ -160,7 +160,7 @@
   \end{tabular}
   \vspace{0.5em}
   \begin{itemize}\small
-    \item Hands-on coding alternates with the slides during Parts 3, 5 and 7.
+    \item Hands-on coding alternates with the slides.
   \end{itemize}
 \end{frame}
 
@@ -182,7 +182,7 @@
       \item Full Dantzig--Wolfe / Lagrangian \emph{theory}
             (we keep an executive summary at the end of Part 2).
       \item Cut-and-price (a.k.a.\ branch-cut-and-price) -- mentioned, not derived.
-      \item GPU pricing / parallel B\&P.
+      \item Parallel B\&P.
       \item Stochastic or robust extensions.
     \end{itemize}
   \end{columns}
@@ -424,7 +424,7 @@
 
 \begin{frame}{The basic loop, in one slide}
   \begin{columns}[T,onlytextwidth]
-    \column{0.55\textwidth}
+    \column{0.62\textwidth}
     \begin{tikzpicture}[every node/.style={font=\scriptsize}]
       \tikzstyle{box}=[rounded corners,draw,minimum width=30mm,minimum height=11mm,
                        align=center,fill=accent2!10,draw=accent2!70,thick];
@@ -433,14 +433,14 @@
       \node[box]  (rmp) at (0,0)    {Restricted master\\(LP)};
       \node[box]  (sub) at (5.6,0)  {Pricing $\sub(\boldsymbol\pi)$\\(combinatorial)};
       \node[stop] (stop) at (5.6,-2.4) {Optimal\\STOP};
-      \draw[->,thick,accent2] (rmp.east) -- node[above,scale=0.95]{duals $\boldsymbol\pi^*$} (sub.west);
+      \draw[->,thick,accent2] (rmp.east) -- node[above,scale=0.95]{1. duals $\boldsymbol\pi^*$} (sub.west);
       \draw[->,thick,accent]  (sub.south west)
            .. controls +(-0.8,-1.2) and +(0.8,-1.2) ..
-           node[below,align=center,scale=0.95]{add $p^*$ with\\$\redcost_{p^*}\!<\!0$}
+           node[below,align=center,scale=0.95]{2. add $p^*$ with\\$\redcost_{p^*}\!<\!0$}
            (rmp.south east);
-      \draw[->,thick] (sub.south) -- node[right,scale=0.9]{all $\redcost\!\ge\!0$} (stop.north);
+      \draw[->,thick] (sub.south) -- node[right,scale=0.9]{3. all $\redcost\!\ge\!0$} (stop.north);
     \end{tikzpicture}
-    \column{0.42\textwidth}
+    \column{0.38\textwidth}
     \small
     \begin{enumerate}\setlength{\itemsep}{2pt}
       \item Solve $\rmp$ $\to$ primal $\bar x$, duals $\boldsymbol\pi^*$.
@@ -517,12 +517,12 @@
   \end{center}
 \end{frame}
 
-\begin{frame}{\textbf{[ask the room]} What is the pricer for cutting stock?}
+\begin{frame}{What is the pricer for cutting stock?}
   Master $\min\sum_p x_p$ s.t.\ $\sum_p a_{ip} x_p \ge d_i$, with dual
   $\pi_i\!\ge\!0$ on each demand row.
 
   \medskip
-  \begin{keybox}[Question for the audience]
+  \begin{keybox}[Question]
     A column $p$ here is a cutting pattern $a_p\!\in\!\Z_+^I$ with
     $\sum_i w_i a_{ip}\!\le\!W$.\;\;Its master cost is $c_p\!=\!1$.
     \begin{itemize}
@@ -531,8 +531,6 @@
             problem do you minimise to find the most negative $\redcost_p$?
     \end{itemize}
   \end{keybox}
-  \medskip
-  \emph{Take a minute, then we move to the next slide for the answer.}
 \end{frame}
 
 \begin{frame}{Pricing for the pattern formulation (cutting stock)}
@@ -559,13 +557,13 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}{\textbf{[ask the room]} What is the pricer for VRPTW?}
+\begin{frame}{What is the pricer for VRPTW?}
   Master $\min\sum_p c_p x_p$ s.t.\ $\sum_p a_{ip}x_p=1$, duals
   $\pi_i\!\in\!\R$.\;A column is a feasible route
   $p=(0,i_1,\dots,i_k,0)$, with $c_p=\sum_{(u,v)\in p}d_{uv}$.
 
   \medskip
-  \begin{keybox}[Question for the audience]
+  \begin{keybox}[Questions]
     \begin{itemize}
       \item Write $\redcost_p$ as a sum over the arcs of the route.
       \item What is the resulting pricing problem on the customer
@@ -619,26 +617,26 @@
   \begin{center}
   \begin{tikzpicture}[xscale=0.30,yscale=0.45,every node/.style={font=\tiny}]
     \begin{scope}[xshift=0cm]
-      \node[above,scale=1.2]{$p_1\!=\!(3,0,0)$};
-      \draw[fill=accent2!20] (0,0) rectangle (3,1);\node at (1.5,0.5){$w_1$};
-      \draw[fill=accent2!20] (3,0) rectangle (6,1);\node at (4.5,0.5){$w_1$};
-      \draw[fill=accent2!20] (6,0) rectangle (9,1);\node at (7.5,0.5){$w_1$};
-      \draw[dashed] (9,0) rectangle (10,1);
+      \node[above,scale=1.2] at (2.5,0.5){$p_1\!=\!(3,0,0)$};
+      \draw[fill=accent2!20] (0,0) rectangle (3,-1);\node at (1.5,-0.5){$w_1$};
+      \draw[fill=accent2!20] (3,0) rectangle (6,-1);\node at (4.5,-0.5){$w_1$};
+      \draw[fill=accent2!20] (6,0) rectangle (9,-1);\node at (7.5,-0.5){$w_1$};
+      \draw[dashed] (9,0) rectangle (10,-1);
     \end{scope}
     \begin{scope}[xshift=12cm]
-      \node[above,scale=1.2]{$p_2\!=\!(0,2,0)$};
-      \draw[fill=accent2!20] (0,0) rectangle (5,1);\node at (2.5,0.5){$w_2$};
-      \draw[fill=accent2!20] (5,0) rectangle (10,1);\node at (7.5,0.5){$w_2$};
+      \node[above,scale=1.2] at (2.5,0.5){$p_2\!=\!(0,2,0)$};
+      \draw[fill=accent2!20] (0,0) rectangle (5,-1);\node at (2.5,-0.5){$w_2$};
+      \draw[fill=accent2!20] (5,0) rectangle (10,-1);\node at (7.5,-0.5){$w_2$};
     \end{scope}
     \begin{scope}[xshift=24cm]
-      \node[above,scale=1.2]{$p_3\!=\!(0,0,1)$};
-      \draw[fill=accent2!20] (0,0) rectangle (7,1);\node at (3.5,0.5){$w_3$};
-      \draw[dashed] (7,0) rectangle (10,1);
+      \node[above,scale=1.2] at (2.5,0.5){$p_3\!=\!(0,0,1)$};
+      \draw[fill=accent2!20] (0,0) rectangle (7,-1);\node at (3.5,-0.5){$w_3$};
+      \draw[dashed] (7,0) rectangle (10,-1);
     \end{scope}
     \begin{scope}[xshift=36cm]
-      \node[above,scale=1.2]{\textcolor{accent}{new $p_4\!=\!(1,0,1)$}};
-      \draw[fill=accent!30] (0,0) rectangle (3,1);\node at (1.5,0.5){$w_1$};
-      \draw[fill=accent!30] (3,0) rectangle (10,1);\node at (6.5,0.5){$w_3$};
+      \node[above,scale=1.2] at (3.5,0.5){\textcolor{accent}{new $p_4\!=\!(1,0,1)$}};
+      \draw[fill=accent!30] (0,0) rectangle (3,-1);\node at (1.5,-0.5){$w_1$};
+      \draw[fill=accent!30] (3,0) rectangle (10,-1);\node at (6.5,-0.5){$w_3$};
     \end{scope}
   \end{tikzpicture}
   \end{center}
@@ -663,7 +661,6 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
   \]
   We only declare $x_p\!\ge\!0$ -- \alert{never} an upper bound $x_p\!\le\!1$.
 
-  \medskip
   \begin{itemize}\small
     \item The covering / partitioning constraint \alert{already bounds}
           $x_p$: in cutting stock $\sum_p x_p \le \sum_p a_{ip}\,x_p/a_{ip}$
@@ -701,7 +698,7 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     column per constraint -- but \alert{never start empty}.
   \end{keybox}
   \begin{warnbox}[Why not start empty?]
-    With an infeasible $\rmp$ the dual is unbounded: the pricer gets bogus
+    \pause With an infeasible $\rmp$ the dual is unbounded: the pricer gets bogus
     prices and convergence is unreliable.
   \end{warnbox}
 \end{frame}
@@ -712,13 +709,14 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     \min c\transpose x \;\text{s.t.}\; A_0 x \ge b_0,\; x\in X = \{x:Bx\ge d,\,x\ge 0\}.
   \]
   $X$ a polyhedron $\Rightarrow$ every $x\in X$ writes as
-  $x=\sum_p \lambda_p\, v_p + \sum_r \mu_r\, r_r$, $\lambda\in\Delta$, $\mu\ge 0$
+  $x=\sum_p \lambda_p\, v_p + \sum_r \mu_r\, r_r$, $\lambda\geq 0, \sum_p \lambda_p = 1$, $\mu\ge 0$
   (vertices $v_p$, rays $r_r$). Substituting:
   \[
     \min \sum_p (c\transpose v_p)\lambda_p + \sum_r (c\transpose r_r)\mu_r
     \;\text{s.t.}\;
     \sum_p (A_0 v_p)\lambda_p+\sum_r (A_0 r_r)\mu_r\ge b_0,\;
-    \mathbf 1\transpose\lambda=1.
+    \mathbf 1\transpose\lambda=1\;
+    \lambda, \mu\ge 0.
   \]
   This is the \alert{master problem}; one variable per vertex/ray of $X$.
   Pricing = optimisation over $X$ with modified objective $c-\boldsymbol\pi A_0$.
@@ -791,7 +789,7 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
   \end{keybox}
 \end{frame}
 
-\begin{frame}{\textbf{[lab]} Exercise A -- Build the master in HiGHS}
+\begin{frame}{Exercise A -- Build the master in HiGHS}
   \begin{exbox}[Exercise A -- master \& initial columns]
     \begin{itemize}\small
       \item Open \texttt{lab/python/vrp/cg/master\_problem.py}.
@@ -840,7 +838,6 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     \item supports a \alert{dominance relation} for label pruning.
   \end{itemize}
 
-  \medskip
   Examples in VRPTW:
   \begin{tabular}{@{}llll@{}}
     \toprule
@@ -852,6 +849,7 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     Visited set    & $S'\!=\!S\cup\{v\}$ & elementary, $v\notin S$ & $\subseteq$ \\
     \bottomrule
   \end{tabular}
+  
   In our \texttt{rcspp} package these are encoded by the
   \texttt{ExtensionFunction}, \texttt{FeasibilityFunction},
   \texttt{DominanceFunction} triple.
@@ -869,7 +867,6 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
   \item \IndentTwo extend $L\to L'$ via $f_{uv}$
   \item \IndentTwo \textbf{if} $L'$ feasible \textbf{and} not dominated, store it
   \item \Indent dominate / discard newly dominated labels at $v$
-  \item \textbf{end while}
   \item Best label at destination $d$ = optimal RCSPP path
   \end{algo}
   Correctness: dominance + monotone extensions $\Rightarrow$ no useful label
@@ -900,7 +897,7 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
 
 \begin{frame}{A worked RCSPP example}
   \begin{columns}[T,onlytextwidth]
-    \column{0.58\textwidth}
+    \column{0.65\textwidth}
     \begin{tikzpicture}[every node/.style={font=\small}]
       \tikzstyle{n} =[circle,draw,minimum size=9mm,inner sep=0pt,
                       fill=accent!10,draw=accent!70,thick];
@@ -923,24 +920,24 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     \scriptsize Each arc labelled $(c_{uv},\,\rho_{uv})$.\;
     Resource budget at $d$: $\rho(P)\le 7$.
 
-    \column{0.39\textwidth}
+    \column{0.32\textwidth}
     \scriptsize
     \begin{tabular}{@{}lcc@{}}
       \toprule
       Path & $\sum c$ & $\sum\rho$ \\
       \midrule
-      $o\!\to\!a\!\to\!c\!\to\!d$ & $5$ & $6$ \cmark \\
-      $o\!\to\!b\!\to\!c\!\to\!d$ & $3$ & $11$ \xmark \\
-      $o\!\to\!a\!\to\!d$         & $5$ & $8$ \xmark \\
+      $o\!\to\!a\!\to\!c\!\to\!d$ & \only<2->{$5$} & \only<2->{$6$ \cmark} \\
+      $o\!\to\!b\!\to\!c\!\to\!d$ & \only<2->{$3$} & \only<2->{$11$ \xmark} \\
+      $o\!\to\!a\!\to\!d$         & \only<2->{$5$} & \only<2->{$8$ \xmark} \\
       \bottomrule
     \end{tabular}
 
     \medskip
-    Optimum: $o\!\to\!a\!\to\!c\!\to\!d$, cost $5$.
+    Optimum: \only<2->{$o\!\to\!a\!\to\!c\!\to\!d$, cost $5$.}
   \end{columns}
   \medskip
-  \alert{Shortest path and feasible path are not the same.} The cheaper
-  $o\!\to\!b\!\to\!c\!\to\!d$ violates the resource budget.
+  \alert{Shortest path and feasible path are not the same.} \only<2->{The cheaper
+  $o\!\to\!b\!\to\!c\!\to\!d$ violates the resource budget.}
 \end{frame}
 
 \begin{frame}{Elementary or not? coefficient $a_{ip}$ in the master}
@@ -948,7 +945,7 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
   \begin{itemize}\small
     \item \textbf{Elementary}: every customer appears at most once,
           $a_{ip}\!=\!\mathbf 1[i\in S_p]\in\{0,1\}$. Coefficient is binary.
-    \item \textbf{Non-elementary} (SPPRC): pricer may produce routes
+    \item \textbf{Non-elementary} (RCSPP): pricer may produce routes
           revisiting a customer; we set $a_{ip}\!=\!\#$ visits of $i$ in $p$,
           which can be $\ge 2$.
   \end{itemize}
@@ -959,36 +956,36 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     or pay heavily.
   \end{tcolorbox}
   \begin{itemize}\small
-    \item Elementary: tighter LP, harder pricer (ESPPRC).
+    \item Elementary: tighter LP, harder pricer (ERCSPP).
     \item Non-elementary: weaker LP (revisits allowed at LP level), much
-          easier pricer (SPPRC).
+          easier pricer (RCSPP).
     \item ng-routes interpolate: cheap pricer, almost-elementary LP.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{ESPPRC vs SPPRC}
-  \begin{tabular}{@{}p{0.40\textwidth}p{0.55\textwidth}@{}}
+\begin{frame}{ERCSPP vs RCSPP}
+  \begin{tabular}{@{}p{0.2\textwidth}p{0.75\textwidth}@{}}
     \toprule
-    \textbf{ESPPRC} & visit each node \alert{at most once}; pricing for
+    \textbf{ERCSPP} & visit each node \alert{at most once}; pricing for
                       set-partitioning master with $=1$ constraints. \\
-    \textbf{SPPRC}  & nodes may be revisited; pricing for
+    \textbf{RCSPP}  & nodes may be revisited; pricing for
                       set-covering ($\ge 1$). \\
     \bottomrule
   \end{tabular}
   \medskip
   \begin{itemize}\small
-    \item ESPPRC is \alert{strongly} NP-hard.
-    \item SPPRC with non-negative reduced costs and \alert{integer}
+    \item ERCSPP is \alert{strongly} NP-hard.
+    \item RCSPP with non-negative reduced costs and \alert{integer}
           resources is solvable in pseudo-polynomial time.
-    \item Most modern VRPTW solvers price ng-routes: between SPPRC and ESPPRC,
-          they tighten dominance compared to SPPRC but stay tractable.
+    \item Most modern VRPTW solvers price ng-routes: between RCSPP and ERCSPP,
+          they tighten dominance compared to RCSPP but stay tractable.
   \end{itemize}
 
   \begin{keybox}[Practical advice]
-    Avoid solving the full \alert{ESPPRC} in general -- it explodes
-    combinatorially. Start with \alert{SPPRC} pricing; if the master ends up
+    Avoid solving the full \alert{ERCSPP} in general -- it explodes
+    combinatorially. Start with \alert{RCSPP} pricing; if the master ends up
     with too many revisiting routes, switch to ng-routes. Reserve exact
-    ESPPRC for small instances or for the last few branch-and-price nodes.
+    ERCSPP for small instances or for the last few branch-and-price nodes.
   \end{keybox}
 \end{frame}
 
@@ -999,17 +996,16 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
     \midrule
     Greedy / nearest-neighbour & $O(n^2)$ & 1 negative-cost route \\
     Heuristic label-setting & $O(n\cdot|A|)$ & a handful \\
-    Exact label-setting (SPPRC / ESPPRC) & exp.\ in worst case & all neg.\ red.\ cost \\
+    Exact label-setting (RCSPP / ERCSPP) & exp.\ in worst case & all neg.\ red.\ cost \\
     Bidirectional w.\ join & faster than fwd & same \\
     \bottomrule
   \end{tabular}
   \medskip
   \begin{itemize}\small
     \item During the first iterations, nobody calls the exact pricer.
-    \item Hierarchy: greedy $\to$ ng-route $\to$ exact ESPPRC, escalate only when
-          cheaper levels return $\redcost\ge 0$.
+    \item Hierarchy: greedy $\to$ heuristic $to$ exact RCSPP / ERCSPP.
     \item For LP optimality, the \alert{last} pricing call must be exact.
-    \item For the Lagrangian bound (Part 6), we also need a true lower bound
+    \item For the Lagrangian bound (Part 4), we also need a true lower bound
           from the pricer -- heuristic pricers are not enough.
   \end{itemize}
 \end{frame}
@@ -1028,38 +1024,43 @@ master.addColumn(p_new, cost=1)                  # red. cost 1 - (1/3 + 1) < 0
   \end{itemize}
   \vfill
   \begin{tcolorbox}[colback=accent!5,colframe=accent!50,sharp corners,boxrule=0.4pt]
-   In the lab, the function \texttt{solve\_subproblem(\dots, max\_nb\_solutions)}
-   already returns a list of solutions. You'll experiment with the cap.
+   In the lab, \texttt{VRP(K\_MAX=K)} caps the number of columns added per
+   CG iteration. The \texttt{compare\_cg} runner sweeps $K$ for you.
   \end{tcolorbox}
 \end{frame}
 
 \begin{frame}[fragile]{The \texttt{rcspp} Python package, in 30 seconds}
 \begin{lstlisting}
-from rcspp.graph import ResourceGraph
+from rcspp.graph    import ResourceGraph
+from rcspp._core.graph import Row
 from rcspp.resource import (
-    RealAdditionExtensionFunction,        # cost or load
-    RealValueDominanceFunction,           # <= dominance
-    RealValueCostFunction,
-    RealTrivialFeasibilityFunction,       # no bound
+    AdditionExtensionFunction,            # cost or load
+    ValueDominanceFunction,               # <= dominance
+    ValueCostFunction,
+    TrivialFeasibilityFunction,           # no bound
     MinMaxFeasibilityFunction,            # [lo, hi]
     TimeWindowExtensionFunction,          # max(T+travel, a_v)
     TimeWindowFeasibilityFunction,        # T <= b_v
 )
 g = ResourceGraph()
-g.add_real_resource(ext, feas, cost, dom)   # one call per resource
+g.add_real_resource(ext, feas, cost, dom) # 1 call / resource
 g.add_node(node_id, is_source, is_sink)
-g.add_arc(([(redcost,), (time,), (load,)],), o, d, arc_id, redcost)
-solutions = g.solve()                        # returns Solution[]
+g.add_arc((dist, time, load),            # base resource incr.
+          o, d, arc_id, dist,            # base cost = dist
+          [Row(o, 1.0)])                 # 1*pi_o subtracted
+g.update_reduced_costs(dual_by_id)       # cheap re-pricing
+solutions = g.solve()                    # Solution[] sorted with negative reduced cost
 \end{lstlisting}
   \begin{itemize}\small
-    \item Each arc carries a \alert{tuple of resource increments}, in the same
-          order as registered resources.
-    \item \texttt{solve()} runs label-setting and returns
-          \alert{all sink labels with negative cost}, sorted.
+    \item Each arc carries \alert{base costs} (no duals baked in) plus
+          a list of dual \texttt{Row}s. The reduced cost is
+          $\redcost_{uv}=c_{uv}^{\text{base}}-\sum_r \alpha_r\,\pi_{i_r}$.
+    \item \alert{Build the graph once}; call
+          \texttt{update\_reduced\_costs} every CG iteration.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{\textbf{[lab]} Exercise B -- Wire the pricing subproblem}
+\begin{frame}{Exercise B -- Wire the pricing subproblem}
   \begin{exbox}[Exercise B -- arc costs \& RCSPP solve]
     \begin{itemize}\small
       \item In \texttt{vrp.py}, complete \texttt{add\_arc\_to\_graph}:
@@ -1095,7 +1096,7 @@ solutions = g.solve()                        # returns Solution[]
   \end{tikzpicture}
   \end{center}
   \begin{itemize}\small
-    \item Rule of thumb: pricing is 70-95\% of total time.
+    \item Rule of thumb: pricing is 70-95\% of total time, should never be less than $40\%$.
     \item LP solve grows roughly linearly with the number of accumulated columns
           (warm-started simplex / interior point reuse).
     \item Memory: the column pool can balloon to millions of routes -- you
@@ -1134,8 +1135,8 @@ solutions = g.solve()                        # returns Solution[]
     \draw[->,thick] (h.south)  -- node[right,scale=0.8]{none} (ex.north);
     \draw[->,thick] (ex.east)  -- node[above,scale=0.8]{none} (sp.west);
 
-    \draw[->,thick,accent] (g.east)  -- ++(0.5,0) -| node[right,scale=0.8,pos=0.25]{cols} (sp.north);
-    \draw[->,thick,accent] (h.east)  -- ++(0.5,0) -- node[right,scale=0.8]{cols} ++(0,-1.3);
+    \draw[->,thick,accent] (g.east)  -- ++(0.5,0) -| node[right,scale=0.8,pos=0.25]{} (sp.north);
+    \draw[->,thick,accent] (h.east)  -- ++(0.5,0) -| node[right,scale=0.8]{cols} (sp.north);
   \end{tikzpicture}
   \end{center}
   \vspace{-0.3em}
@@ -1155,12 +1156,12 @@ solutions = g.solve()                        # returns Solution[]
     \toprule
     Family & Definition / pricing problem \\
     \midrule
-    \textbf{SPPRC} & nodes can be revisited; coefficient $a_{ip}$ in master
+    \textbf{RCSPP} & nodes can be revisited; coefficient $a_{ip}$ in master
                      can be $\ge 2$. Pseudo-poly with non-negative duals. \\
     \textbf{ng-routes} & nodes can be revisited only if the recently
                      visited set does not contain them. ``Almost
                      elementary'', partial dominance. \\
-    \textbf{ESPPRC} & every customer visited at most once. Strongest LP,
+    \textbf{ERCSPP} & every customer visited at most once. Strongest LP,
                      pricer is strongly NP-hard. \\
     \bottomrule
   \end{tabular}
@@ -1221,9 +1222,7 @@ solutions = g.solve()                        # returns Solution[]
   \end{itemize}
   \medskip
   \begin{warnbox}[Beware]
-    Building the LP from scratch each iteration (as in our didactic code)
-    is fine for a workshop, terrible for production. After this morning, the
-    first thing you'll change is to keep the LP alive across iterations.
+    Building the LP from scratch each iteration is terrible for production. In the exercice, you will keep the LP alive across iterations.
   \end{warnbox}
 \end{frame}
 
@@ -1242,12 +1241,12 @@ solutions = g.solve()                        # returns Solution[]
       \draw[thick,accent2] plot[smooth] coordinates {
         (0.2,3.8) (0.7,3.45) (1.3,3.05) (2.0,2.78) (2.8,2.62)
         (3.7,2.54) (4.7,2.49) (5.8,2.45) (6.8,2.42)};
-      \node[accent2,right] at (6.9,2.42) {$z^{\rmp}$};
+      \node[accent2,right] at (6.2,2.8) {$z^{\rmp}$};
       % LB curve
       \draw[thick,accent] plot[smooth] coordinates {
         (0.2,0.5) (0.7,0.85) (1.3,1.20) (2.0,1.55) (2.8,1.85)
         (3.7,2.08) (4.7,2.25) (5.8,2.35) (6.8,2.40)};
-      \node[accent,right] at (6.9,2.39) {$LB$};
+      \node[accent,right] at (6.2,2) {$LB$};
       % tail shading
       \fill[gray!12]
         (4.0,2.51) -- (4.7,2.49) -- (5.8,2.45) -- (6.8,2.42) --
@@ -1275,7 +1274,7 @@ solutions = g.solve()                        # returns Solution[]
   \end{columns}
 \end{frame}
 
-\begin{frame}{\textbf{[ask the room]} How do we bound the LP early?}
+\begin{frame}{How do we bound the LP early?}
   At iteration $k$, the master value $z^{\rmp_k}$ is an \alert{upper}
   bound on the LP -- it can only decrease as we add columns.
   \medskip
@@ -1355,7 +1354,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
     \item Watch out for accidentally symmetric objectives: if your route cost
           $c_p$ does not depend on which vehicle uses it, drop vehicle indices
           everywhere.
-    \item Elementarity vs SPPRC: revisits are LP-feasible only when the dual
+    \item Elementarity vs RCSPP: revisits are LP-feasible only when the dual
           variables of revisited customers are positive enough to make the
           loop ``profitable''. ng-routes give you 90\% of elementarity for
           10\% of the work.
@@ -1380,7 +1379,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
 \end{algo}
 \end{frame}
 
-\begin{frame}{\textbf{[lab]} Exercise C -- multi-column, smoothing, LB}
+\begin{frame}{Exercise C -- multi-column, smoothing, LB}
   \begin{exbox}[Exercise C -- efficient CG]
     \begin{itemize}\small
       \item Cap the number of columns added per iteration with the parameter
@@ -1418,7 +1417,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
     \begin{itemize}\small
       \item \alert{Heuristic}: get a good integer solution fast, no
             optimality guarantee.
-      \item \alert{Exact}: branch-and-price (Part 6).
+      \item \alert{Exact}: branch-and-price (Part 6): Branch-and-bound on the master IP, where every node's LP relaxation is solved by column generation.
     \end{itemize}
     \item Today we will use both: heuristics give a working incumbent in
           the lab, and we will then plug it into a small \alert{branch-and-price}
@@ -1543,7 +1542,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
   \end{itemize}
 \end{frame}
 
-\begin{frame}{\textbf{[lab]} Exercise D -- Heuristic IP on the column pool}
+\begin{frame}{Exercise D -- Heuristic IP on the column pool}
   \begin{exbox}[Exercise D -- RMH then plain dive]
     \begin{itemize}\small
       \item After CG converges at the root, take the column pool and call
@@ -1580,6 +1579,23 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
   \end{enumerate}
 \end{frame}
 
+\begin{frame}{How would you branch?}
+  Imagine the LP returns
+  $\bar x_{p_1}=0.5$, $\bar x_{p_2}=0.5$, $\bar x_{p_3}=0$, …
+  with $p_1$ and $p_2$ visiting partly different customers.
+
+  \medskip
+  \begin{keybox}[Questions]
+    \begin{itemize}
+      \item Why does \alert{$x_p\!\le\!0$ vs $x_p\!\ge\!1$} (branching on the
+            master variable) destroy the branch-and-bound tree and the pricer?
+      \item Find a binary criterion on \emph{customer pairs} that always
+            shows fractionality whenever $\bar x$ is fractional.
+    \end{itemize}
+  \end{keybox}
+  \medskip
+\end{frame}
+
 \begin{frame}{The naive branch (don't do this)}
   Just branching on a fractional master variable
   \[
@@ -1593,7 +1609,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
     \item Down-branch: \alert{forbid one specific column} $p$. The pricer
           needs to enumerate ``all paths except $p$'' -- equivalent to a
           combinatorial $k$-shortest-path problem, which is much harder than
-          plain SPPRC and \alert{breaks dominance}.
+          plain RCSPP and \alert{breaks dominance}.
     \item The tree is also extremely unbalanced (one excluded column among
           $10^{20}$).
   \end{itemize}
@@ -1602,29 +1618,11 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
   \end{warnbox}
 \end{frame}
 
-\begin{frame}{\textbf{[ask the room]} How would you branch?}
-  Imagine the LP returns
-  $\bar x_{p_1}=0.5$, $\bar x_{p_2}=0.5$, $\bar x_{p_3}=0$, …
-  with $p_1$ and $p_2$ visiting partly different customers.
-
-  \medskip
-  \begin{keybox}[Question]
-    \begin{itemize}
-      \item Why does \alert{$x_p\!\le\!0$ vs $x_p\!\ge\!1$} (branching on the
-            master variable) destroy the pricer?
-      \item Find a binary criterion on \emph{customer pairs} that always
-            shows fractionality whenever $\bar x$ is fractional.
-    \end{itemize}
-  \end{keybox}
-  \medskip
-  \emph{The answer is the Ryan-Foster rule -- next slide.}
-\end{frame}
-
 \begin{frame}{Ryan-Foster branching (set-partitioning case)}
   Set-partitioning constraints $\sum_p a_{ip}\,x_p = 1$. If $\bar x$ is fractional,
   there must exist customers $i,j$ such that
   \[
-    \sum_{p:\,i,j\in S_p} \bar x_p \;\in\; (0,1),
+    \sum_{p:\,(i,j)\in S_p} \bar x_p \;\in\; (0,1),
   \]
   i.e.\ $i$ and $j$ are \alert{sometimes} together, \alert{sometimes} not.
 
@@ -1668,7 +1666,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
       \node[c]      (l1)  at ( 2.4,0)  {$\ell$};
       \draw[->,thick] (k1)--(ij1); \draw[->,thick] (ij1)--(l1);
       \node[below=2mm of ij1,scale=0.8,align=center]
-       {merge $i,j$ into one node;\\$q\!=\!q_i\!+\!q_j$, window $[a_i,b_i]\!\cup\![a_j,b_j]$};
+       {"heuristic" merge $i,j$ into one node;\\$q\!=\!q_i\!+\!q_j$, window "$[a_i,b_i]\!\cup\![a_j,b_j]$"};
       \node[above=2mm of ij1,accent,scale=0.85]{TOGETHER};
     \end{scope}
     % --- bottom-right: apart ---
@@ -1708,7 +1706,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
     \item Up-branch: \alert{force arc $(u,v)$} -- contract endpoints into a
           single super-node with merged time window.
     \item Universally compatible with VRP, scheduling, network design.
-    \item Often produces more balanced trees than Ryan-Foster.
+    \item Often produces more balanced trees than Ryan-Foster, but deeper.
   \end{itemize}
 \end{frame}
 
@@ -1779,7 +1777,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
 \begin{algo}[Branch-and-price]
 \item $\text{UB}\leftarrow +\infty$;\;\; open $\leftarrow\{$root$\}$;\;\; global\_LB $\leftarrow -\infty$
 \item \textbf{while} open non-empty
-\item \Indent $N \leftarrow$ pick-next(open) \quad\textcolor{accent2}{\# best-first OR depth-first dive}
+\item \Indent $N \leftarrow$ pick-next(open) \quad\textcolor{accent2}{\# best-first (smallest LB) OR depth-first dive}
 \item \Indent \textbf{if} $N.\text{LB}\ge\text{UB}-\varepsilon$: \textbf{prune}
 \item \Indent run CG on $N$ \emph{passing} UB;\; \quad\textcolor{accent2}{\# CG stops early if $LB\ge UB$}
 \item \Indent global\_LB $\leftarrow \min(N.\text{LB},\;\min_{M\in\text{open}} M.\text{LB})$
@@ -1790,16 +1788,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
 \item \Indent pick branching arc $(u,v)$; create down, up children
 \item \Indent \textbf{if} depth\_first: process \emph{up}-child immediately; queue down
 \item \Indent \textbf{else}: queue both, sort open by LB
-\item \textbf{end while}
 \end{algo}
-  \begin{itemize}\small
-    \item \alert{Depth-first} (default in the lab): dive into the up-child --
-          tighter constraints, fewer feasible columns, often integer fast.
-    \item \alert{Best-first}: explore the open node with the smallest LB --
-          best LB growth but heavier memory.
-    \item \alert{global\_LB} is the smallest LB across \emph{all} open
-          nodes; pair it with UB to certify a gap.
-  \end{itemize}
 \end{frame}
 
 \begin{frame}{Cut-and-price -- one sentence}
@@ -1839,7 +1828,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
       \scriptsize $\bullet$ branch};
   \end{tikzpicture}
   \begin{itemize}\small
-    \item Solid blue nodes = pruned by bound or integrality.
+    \item Solid blue nodes = pruned by bound, integrality (or infeasibility).
     \item Tree depth $\sim |\mathcal N|$ in the worst case but very rarely so
           in practice.
   \end{itemize}
@@ -1865,7 +1854,7 @@ def lagrangian_bound(mp_dual_by_id, sigma, pricing_sols, K):
   \end{keybox}
 \end{frame}
 
-\begin{frame}{\textbf{[lab]} Exercise E -- B\&P with Lagrangian pruning}
+\begin{frame}{Exercise E -- B\&P with Lagrangian pruning}
   \begin{exbox}[Exercise E -- arc-branching B\&P]
     \begin{itemize}\small
       \item Implement
@@ -1955,20 +1944,6 @@ python -m vrp.tests.compare_bnp --instance R101.txt --Ks 5 20 50
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Hand-off to the lab}
-  \begin{itemize}\small
-    \item All five exercises (A--E) are in the \alert{lab kit}
-          (\texttt{participants/}), with a per-exercise check script and
-          a reference solution under \texttt{solutions/}.
-    \item The lab deck (\texttt{lab.pdf}) walks you through installation,
-          file map, expected outputs and the optional comparison runners
-          (\texttt{compare\_cg}, \texttt{compare\_bnp}).
-    \item Every step logs to \texttt{stderr} via the \texttt{vrp.log}
-          module; \texttt{-v} switches to \texttt{DEBUG}. B\&P lines are
-          colour-tagged so the tree progress stands out at a glance.
-  \end{itemize}
-\end{frame}
-
 % =====================================================================
 \section{Recap and references}
 % =====================================================================
@@ -2021,13 +1996,14 @@ python -m vrp.tests.compare_bnp --instance R101.txt --Ks 5 20 50
   \end{center}
 \end{frame}
 
-\begin{frame}{If you remember three things}
+\begin{frame}{If you remember four things}
   \begin{enumerate}\setlength{\itemsep}{6pt}
     \item \textbf{Don't enumerate}: the master never sees most of $\mathcal P$.
           You generate columns only when their reduced cost is negative.
     \item \textbf{Branch on structure, not on master variables}: Ryan-Foster,
           arc branching, resource branching all keep the pricing problem
           intact.
+    \item \textbf{Use many heuristics} to implement an efficient CG and B\&P.
     \item \textbf{The Lagrangian bound is your friend}: it converts a
           fractional LP into a true lower bound, kills CG tailing-off, and
           prunes B\&P nodes early.
@@ -2101,21 +2077,6 @@ python -m vrp.tests.compare_bnp --instance R101.txt --Ks 5 20 50
     \item Python ecosystem: \texttt{rcspp} (workshop), \texttt{highspy},
           \texttt{pulp}, \texttt{coptpy}, \texttt{networkx}.
   \end{itemize}
-\end{frame}
-
-\begin{frame}{Hand-off to the lab kit}
-  \begin{center}
-    \large
-    The hands-on companion deck (\texttt{lab.pdf}) walks you through:\\[0.6em]
-  \end{center}
-  \begin{itemize}\small
-    \item installation (Python, virtualenv, HiGHS, \texttt{rcspp});
-    \item the directory layout of the \texttt{participants/} folder;
-    \item how to run the smoke test, then exercises A through E;
-    \item expected outputs and common pitfalls.
-  \end{itemize}
-  \vfill
-  \centering Good luck -- and break the LP, not the dominance!
 \end{frame}
 
 \end{document}

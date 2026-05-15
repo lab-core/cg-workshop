@@ -16,23 +16,30 @@ this README — go through them in order so nothing is skipped.
 
 ## 1. Setup
 
+For Linux / macOS users, Python 3.10+ is recommended; Windows users should use WSL or a Python distribution like Anaconda. The code is tested on
+Python 3.10, but should work on 3.8+.
+
+For Linux / macOS users:
 ```bash
 cd participants/
 python3 -m venv .venv
-source .venv/bin/activate            # macOS / Linux
-# .venv\Scripts\activate              # Windows PowerShell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+source .venv/bin/activate
 ```
 
-Then install the workshop pricer (`rcspp` is on TestPyPI, with its
+For Windows users with PowerShell:
+```bash
+cd participants/
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Then install the requirements as well as the workshop pricer (`rcspp` is on TestPyPI, with its
 dependencies on regular PyPI):
 
 ```bash
-pip install \
-  --index-url https://test.pypi.org/simple/ \
-  --extra-index-url https://pypi.org/simple \
-  rcspp==0.0.1.dev0
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple rcspp==0.0.1.dev0
 ```
 
 Run the smoke check — this exercises `highspy` + `rcspp` and **does not
@@ -76,12 +83,12 @@ participants/
     ├── instance.py          <-- Customer / Instance — read-only
     ├── instance_reader.py   <-- Solomon parser     — read-only
     ├── smoke_test.py        <-- environment check
-    ├── vrp.py               <-- main driver         ✏️ EX-A.3, B.3, C.2..C.4
+    ├── vrp.py               <-- main driver         ✏️ EX-A.3, B.3, C.1..C.3
     ├── cg/
     │   ├── path.py, mp_solution.py
     │   ├── master_problem.py    ✏️ EX-A.1, A.2, D.1
     │   ├── pricing.py           ✏️ EX-B.1, B.2, E.4
-    │   ├── bound.py             ✏️ EX-C.5 (Lagrangian bound)
+    │   ├── bound.py             ✏️ EX-C.4 (Lagrangian bound)
     │   ├── diving.py            ✏️ EX-D.2, D.3
     │   └── bnp.py               ✏️ EX-E.1, E.2, E.3 (loop is provided!)
     └── tests/                <-- progressive checks (NOT pytest)

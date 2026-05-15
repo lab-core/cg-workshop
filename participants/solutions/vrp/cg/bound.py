@@ -1,4 +1,4 @@
-"""Lagrangian lower bound for the master problem (Trick 7).
+"""Reference Lagrangian lower bound (Trick 7).
 
 For a set-partitioning master with K identical vehicles, customer covering
 right-hand side b_i = 1, and an explicit vehicle-count constraint
@@ -41,4 +41,6 @@ def lagrangian_bound(mp_dual_by_id: dict[int, float],
     #   redc   = min((s.cost for s in pricing_solutions), default=0.0)
     #   return pi_sum + nb_vehicles * sigma + nb_vehicles * min(0.0, redc)
     # =====================================================
-    raise NotImplementedError("EX-C.4: Lagrangian bound")
+    pi_sum = sum(mp_dual_by_id.values())
+    redc = min((s.cost for s in pricing_solutions), default=0.0)
+    return pi_sum + nb_vehicles * sigma + nb_vehicles * min(0.0, redc)
