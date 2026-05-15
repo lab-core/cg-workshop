@@ -15,8 +15,6 @@
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{tikz}
 \usepackage{tcolorbox}
-\usepackage{qrcode}                            % title-page QR
-\newcommand{\workshopURL}{https://github.com/legraina/workshop-cg}
 \usepackage{booktabs}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -91,26 +89,11 @@
 \subtitle{Lab deck -- installation, running, exercises}
 \author{Antoine Legrain}
 \institute{Polytechnique Montr\'eal}
-\date{\today}
+\date{May 20, 2026}
 
 \begin{document}
 
-\begin{frame}
-  \titlepage
-  \begin{tikzpicture}[remember picture, overlay]
-    \node[anchor=south east, xshift=-60mm, yshift=10mm]
-          at (current page.south east)
-          {\begin{tikzpicture}
-             \node[fill=white, draw=black!15, line width=0.4pt,
-                   inner sep=4pt, rounded corners=2pt]
-               {\qrcode[height=3cm]{\workshopURL}};
-           \end{tikzpicture}};
-    \node[anchor=south east, xshift=-62mm, yshift=6mm,
-          font=\scriptsize\itshape, text=black!70]
-          at (current page.south east)
-          {scan for the workshop kit};
-  \end{tikzpicture}
-\end{frame}
+\begin{frame}\titlepage\end{frame}
 
 \begin{frame}{What this deck contains}
   \begin{itemize}\setlength{\itemsep}{4pt}
@@ -123,7 +106,7 @@
     \item Cheat sheet: HiGHS \& \texttt{rcspp} APIs.
   \end{itemize}
   \vfill
-  Open this deck on a second screen \emph{while you code}. The theory is in
+  Open this deck (on a second screen) \emph{while you code}. The theory is in
   \texttt{theory.pdf}.
 \end{frame}
 
@@ -184,8 +167,8 @@
 (.venv) $ python -m vrp.tests.exD_diving
 (.venv) $ python -m vrp.tests.exE_bnp
 \end{lstlisting}
-  Most checks default to \texttt{toy.txt}; \texttt{exB\_pricing} defaults to
-  \texttt{R101\_25.txt}. Pass \texttt{{-}{-}instance <name>} to override.
+  Each check defaults to the small \texttt{toy.txt} instance; pass
+  \texttt{{-}{-}instance R101\_25.txt} for a larger Solomon file.
 \end{frame}
 
 \begin{frame}[fragile]{Smoke check -- you should see this}
@@ -215,7 +198,7 @@
 \begin{lstlisting}[style=sh,basicstyle=\ttfamily\tiny]
 python/
 +-- README.md, requirements.txt, theory.pdf, lab.pdf
-+-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_0.txt)
++-- instances/                 toy.txt + Solomon files (+ duals/<inst>/iter_*.txt)
 +-- solutions/                 reference solutions (do not peek!)
 +-- vrp/
     +-- instance.py, instance_reader.py    (read-only)
@@ -251,10 +234,10 @@ python/
     \textbf{EX-B.2} & \texttt{cg/pricing.py} & per-arc base cost \& dual \texttt{Row} \\
     \textbf{EX-B.3} & \texttt{vrp.py} & wire \texttt{solve\_subproblem} (build once + \texttt{update\_reduced\_costs}) \\
     \midrule
-    \textbf{EX-C.2} & \texttt{vrp.py} & multi-column add to master \\
-    \textbf{EX-C.3} & \texttt{vrp.py} & Wentges dual smoothing (optional) \\
-    \textbf{EX-C.4} & \texttt{vrp.py} & per-iteration log line (LP, LB, UB, gap) \\
-    \textbf{EX-C.5} & \texttt{cg/bound.py} & Lagrangian bound formula \\
+    \textbf{EX-C.1} & \texttt{vrp.py} & multi-column add to master \\
+    \textbf{EX-C.2} & \texttt{vrp.py} & Wentges dual smoothing (optional) \\
+    \textbf{EX-C.3} & \texttt{vrp.py} & per-iteration log line (LP, LB, UB, gap) \\
+    \textbf{EX-C.4} & \texttt{cg/bound.py} & Lagrangian bound formula \\
     \midrule
     \textbf{EX-D.1} & \texttt{cg/master\_problem.py} & implement \texttt{\_set\_integrality} (RMH) \\
     \textbf{EX-D.2} & \texttt{cg/diving.py} & pick the column to fix \\
@@ -339,6 +322,7 @@ python/
             and return \texttt{graph.solve()} each iteration.
     \end{itemize}
   \end{exbox}
+  \medskip
 \begin{lstlisting}[style=sh]
 (.venv) $ python -m vrp.tests.exB_pricing
 \end{lstlisting}
@@ -364,9 +348,9 @@ python/
 
 \begin{frame}{Exercise C -- goal}
   \begin{exbox}[Exercise C -- multi-column, smoothing, LB]
-    \textbf{Holes to fill: EX-C.2, EX-C.3, EX-C.4, EX-C.5.}
+    \textbf{Holes to fill in \texttt{vrp.py},: EX-C.1, EX-C.2, EX-C.3, EX-C.4.}
     \begin{itemize}\small
-      \item \textbf{C.2}: cap pricer output at \texttt{nb\_cols} columns; only
+      \item \textbf{C.2}: cap pricer output at \texttt{K\_MAX} columns; only
             those with $\redcost<-\varepsilon$ are added to the master.
       \item \textbf{C.3}: Wentges smoothing
             $\boldsymbol\pi\!\leftarrow\!\alpha\boldsymbol\pi^{prev}
@@ -379,7 +363,7 @@ python/
             $\text{LB}\!=\!\sum_i\pi_i + K\sigma + K\!\cdot\!\min(0,\redcost^*)$
             (Trick~7 in the theory deck).
     \end{itemize}
-    Try \texttt{{-}{-}nb-cols-list 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
+    Try \texttt{{-}{-}K 1\,5\,20\,50} and \texttt{-a 0\,0.3\,0.5}
     (or \texttt{compare\_cg} below) to feel each knob.
   \end{exbox}
   \begin{tipbox}[Don't rebuild the master or the graph]
@@ -404,8 +388,7 @@ python/
 [cg] CG done in 8 iters, LP=636.28, LB=636.28, 89 cols added
 \end{lstlisting}
   Try \texttt{{-}{-}nb-cols} $\in\!\{1,5,20,100\}$ and observe the iteration count drop.
-  Wentges $\alpha\!=\!0.5$ often reduces iterations. Without \texttt{{-}{-}nb-vehicles 25}
-  the first 3 iterations show slack-inflated LP/LB values.
+  Without \texttt{{-}{-}nb-vehicles 25} the first iterations show slack-inflated values.
 \end{frame}
 
 % =====================================================================
@@ -450,7 +433,8 @@ python/
     The CG LP is integer for this instance -- RMH solves the exact MIP and
     the dive terminates with 0 fixes.  On harder instances (e.g.\
     \texttt{C101\_25.txt} or \texttt{RC101.txt}) you will see actual fixes
-    and a gap between LP and RMH. A good way to make the instance harder is to decrease the number of vehicles with \texttt{{-}{-}nb-vehicles}.
+    and a gap between LP and RMH. Decrease the number of vehicles with
+    \texttt{{-}{-}nb-vehicles} to make the instance harder.
   \end{tipbox}
 \end{frame}
 
@@ -460,7 +444,7 @@ python/
 
 \begin{frame}{Exercise E -- goal}
   \begin{exbox}[Exercise E -- arc-branching B\&P]
-    \textbf{Holes to fill: EX-E.1, E.2, E.3, E.4.}
+    \textbf{Holes to fill in \texttt{cg/bnp.py}: EX-E.1, E.2, E.3, E.4.}
     \begin{itemize}\small
       \item \textbf{E.1}: aggregated arc flow $\bar y_{uv}$.
       \item \textbf{E.2}: most-fractional arc.
@@ -486,18 +470,15 @@ python/
 (.venv) $ python -m vrp.tests.exE_bnp
 [bnp] B&P start: root LB=1636.39, 1370 columns in pool, depth_first=True ...
 [bnp] B&P done in 12 nodes, optimum=1642.88 (20 routes), global LB=1642.88 ...
-[ex.E] done in 5.8s, optimum=1642.88
+[ex.E] done in 5.9s, optimum=1642.88
 [ex.E] solution (20 routes):
 [ex.E]   cost=86.77  [0, 92, 42, 15, 87, 57, 97, 101]
-[ex.E]   cost=50.00  [0, 31, 88, 7, 101]  ...
-
-
+[ex.E]   cost=50.00  [0, 31, 88, 7, 101]
+[ex.E]   cost=107.35  [0, 63, 64, 49, 48, 101] ...
 \end{lstlisting}
   \begin{tipbox}[1 node = proven optimal without branching]
-    R101\_25 has an integer root LP -- the B\&P terminates immediately.
-    On larger or more constrained instances (\texttt{RC101.txt}, or
-    \texttt{C101\_25.txt}) the tree has many nodes and branching is
-    essential. Use \texttt{compare\_bnp} to observe the search progress.
+    R101\_25 has an integer root LP (you can try) -- the B\&P terminates immediately.
+    On larger or more constrained instances (\texttt{RC101.txt} here) the tree has many nodes and branching is essential. Use \texttt{compare\_bnp} to observe the search progress.
   \end{tipbox}
 \end{frame}
 
@@ -512,11 +493,11 @@ python/
 
 \begin{lstlisting}[style=sh]
 # CG -- compare pricing batch sizes
-python -m vrp.tests.compare_cg --instance RC101.txt --nb-cols-list 1 5 20 50
+python -m vrp.tests.compare_cg --instance RC101.txt --Ks 1 5 20 50
 # CG -- compare Wentges smoothing
 python -m vrp.tests.compare_cg --instance RC101.txt --alphas 0 0.2 0.5
 # B&P -- compare gap thresholds
-python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 2 5
+python -m vrp.tests.compare_bnp --instance R101.txt --gaps 0 0.5 2
 # B&P -- depth-first vs best-first
 python -m vrp.tests.compare_bnp --instance R101.txt --search both
 \end{lstlisting}
@@ -566,8 +547,8 @@ python -m vrp.tests.compare_bnp --instance R101.txt --search both
   \end{tabular}
   \medskip
   \begin{tipbox}[Get unstuck fast]
-    The saved \texttt{iter\_0.txt} in \texttt{instances/duals/R101\_25/} is a
-    one-iteration regression check. Diff your duals against it.
+    Each saved \texttt{iter\_*.txt} in \texttt{instances/duals/R101/} is a
+    one-iteration regression check. Diff your duals against them.
   \end{tipbox}
 \end{frame}
 
@@ -620,30 +601,11 @@ sols = g.solve()                                  # list[Solution]
   iteration calls only \texttt{update\_reduced\_costs(dual\_by\_id)}.
 \end{frame}
 
-\begin{frame}{Time budget reminder}
-  \begin{tabular}{@{}llr@{}}
-    \toprule
-    Exercise & Topic & Budget \\
-    \midrule
-    A & Master in HiGHS                & 15 min \\
-    B & Pricing wiring (RCSPP)         & 25 min \\
-    -- & \emph{break (15 min)}         &        \\
-    C & Multi-col + smoothing          & 20 min \\
-    D & RMH + plain diving             & 25 min \\
-    E & Arc-branching B\&P + LB        & 35 min \\
-    \bottomrule
-  \end{tabular}
-  \medskip
-  Total $\approx$ 2~h hands-on, leaving 2~h for theory and questions.
-\end{frame}
-
 \begin{frame}{Done?}
   \begin{itemize}\small
     \item Bonus exercise \alert{F}: replace plain dominance by
           \alert{ng-routes} in \texttt{pricing.py} and measure the
           speed-up on \texttt{R101\_50.txt}.
-    \item Submit your solutions branch -- a reference solution will be
-          published at the end of the workshop.
   \end{itemize}
   \vfill
   \centering Have fun, and break the LP, not the dominance!
